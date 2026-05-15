@@ -121,6 +121,12 @@ struct AccountSettingsView: View {
                 }
             }
 
+            Button {
+                Task { await billing.restorePurchases() }
+            } label: {
+                Label("Restore Purchases", systemImage: "arrow.clockwise")
+            }
+
             if let message = billing.message {
                 Text(message)
                     .font(.footnote)

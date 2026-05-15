@@ -55,6 +55,17 @@ final class BillingService: ObservableObject {
         }
     }
 
+    func restorePurchases() async {
+        message = "Restoring purchases…"
+        do {
+            try await AppStore.sync()
+            await refreshEntitlements()
+            message = isPremium ? "Pro restored." : "No previous Pro purchase found on this Apple ID."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
     private func setPremium(_ value: Bool) {
         isPremium = value
         UserDefaults.standard.set(value, forKey: premiumKey)
