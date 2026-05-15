@@ -27,20 +27,26 @@ struct EntryDetailView: View {
                     .listRowBackground(Color.clear)
             }
 
-            let heroKeys = record.template.heroFieldKeys
-            let extras = fields.filter { !heroKeys.contains($0.name.lowercased()) && !$0.value.isEmpty }
-            if !extras.isEmpty {
-                Section("Details") {
-                    ForEach(extras) { field in
+            let copyableFields = fields.filter { !$0.value.isEmpty }
+            if !copyableFields.isEmpty {
+                Section("Values") {
+                    ForEach(copyableFields) { field in
                         FieldRow(
                             field: field,
-                            revealed: !field.name.looksSecretFieldName || revealedFields.contains(field.id),
+                            sensitive: isSensitive(field),
+                            revealed: !isSensitive(field) || revealedFields.contains(field.id),
                             onToggle: {
                                 if revealedFields.contains(field.id) {
                                     revealedFields.remove(field.id)
                                 } else {
                                     revealedFields.insert(field.id)
                                 }
+                            },
+                            onValueTap: {
+                                if isSensitive(field) {
+                                    revealedFields.insert(field.id)
+                                }
+                                SecureClipboard.copy(label: field.name, value: field.value)
                             }
                         )
                     }
@@ -57,7 +63,7 @@ struct EntryDetailView: View {
             }
 
             Section {
-                Text("Tap any field to copy. The clipboard clears automatically after 30 seconds.")
+                Text("Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -109,12 +115,25 @@ struct EntryDetailView: View {
         let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
         return String(data: data, encoding: .utf8) ?? ""
     }
+
+    private func isSensitive(_ field: VaultField) -> Bool {
+        let fieldName = field.name.lowercased()
+        if fieldName.looksSecretFieldName {
+            return true
+        }
+        if record.template == .paymentCard {
+            return fieldName == "number" || fieldName.contains("card number")
+        }
+        return false
+    }
 }
 
 private struct FieldRow: View {
     let field: VaultField
+    let sensitive: Bool
     let revealed: Bool
     let onToggle: () -> Void
+    let onValueTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -122,14 +141,24 @@ private struct FieldRow: View {
                 Text(field.name)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(revealed ? field.value : String(repeating: "•", count: min(field.value.count, 16)))
-                    .font(.body)
-                    .textSelection(.enabled)
+                Button(action: onValueTap) {
+                    Text(revealed ? field.value : String(repeating: "•", count: min(field.value.count, 16)))
+                        .font(.body)
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
             Spacer()
-            if field.name.looksSecretFieldName {
+            if sensitive && !revealed {
                 Button(action: onToggle) {
-                    Image(systemName: revealed ? "eye.slash" : "eye")
+                    Image(systemName: "eye")
+                }
+                .buttonStyle(.borderless)
+            } else if sensitive {
+                Button(action: onToggle) {
+                    Image(systemName: "eye.slash")
                 }
                 .buttonStyle(.borderless)
             }
@@ -141,9 +170,6 @@ private struct FieldRow: View {
             .buttonStyle(.borderless)
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            SecureClipboard.copy(label: field.name, value: field.value)
-        }
     }
 }
 
