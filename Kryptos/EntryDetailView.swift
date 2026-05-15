@@ -9,7 +9,7 @@ struct EntryDetailView: View {
     @State private var showingEditor = false
     @State private var confirmingDelete = false
     @State private var revealedFields = Set<UUID>()
-    @State private var qrPayload: String?
+    @State private var qrPayload: QRPayload?
 
     private var fields: [VaultField] {
         (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
@@ -67,7 +67,7 @@ struct EntryDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
-                    qrPayload = makeQRPayload()
+                    qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
                 } label: {
                     Image(systemName: "qrcode")
                 }
@@ -86,10 +86,7 @@ struct EntryDetailView: View {
         .sheet(isPresented: $showingEditor) {
             EntryEditorView(record: record, ownerId: record.ownerId)
         }
-        .sheet(item: Binding(
-            get: { qrPayload.map { QRPayload(value: $0, title: record.title) } },
-            set: { qrPayload = $0?.value }
-        )) { payload in
+        .sheet(item: $qrPayload) { payload in
             QRShareView(payload: payload)
         }
         .alert("Delete this entry?", isPresented: $confirmingDelete) {
@@ -151,9 +148,15 @@ private struct FieldRow: View {
 }
 
 private struct QRPayload: Identifiable {
-    let id = UUID()
+    let id: String
     let value: String
     let title: String
+
+    init(value: String, title: String) {
+        self.value = value
+        self.title = title
+        self.id = "\(title)-\(value.hashValue)"
+    }
 }
 
 private struct QRShareView: View {
@@ -191,6 +194,7 @@ private struct QRShareView: View {
                 Button("Close") { dismiss() }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.height(460)])
+        .presentationDragIndicator(.visible)
     }
 }
