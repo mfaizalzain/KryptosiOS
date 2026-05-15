@@ -184,6 +184,39 @@ extension Array where Element == VaultField {
     }
 }
 
+enum BrandPalette {
+    static let deepNavy = Color(red: 15/255, green: 23/255, blue: 48/255)
+    static let midnight = Color(red: 31/255, green: 42/255, blue: 74/255)
+    static let primary = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 123/255, green: 168/255, blue: 255/255, alpha: 1)
+            : UIColor(red: 0/255, green: 86/255, blue: 210/255, alpha: 1)
+    })
+
+    static let primaryGradient = LinearGradient(
+        colors: [
+            Color(UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(red: 165/255, green: 198/255, blue: 255/255, alpha: 1)
+                    : UIColor(red: 123/255, green: 168/255, blue: 255/255, alpha: 1)
+            }),
+            Color(UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(red: 92/255, green: 145/255, blue: 240/255, alpha: 1)
+                    : UIColor(red: 0/255, green: 86/255, blue: 210/255, alpha: 1)
+            })
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let surfaceGradient = LinearGradient(
+        colors: [deepNavy, midnight],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
 extension String {
     var normalizedIdentifier: String {
         String(lowercased().filter { $0.isLetter || $0.isNumber })

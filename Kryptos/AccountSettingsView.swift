@@ -9,6 +9,7 @@ struct AccountSettingsView: View {
     @Query(sort: \VaultEntryRecord.updatedAt, order: .reverse) private var allRecords: [VaultEntryRecord]
 
     @StateObject private var backup = DriveBackupService()
+    @ObservedObject private var reminders = ExpiryReminderService.shared
     @State private var confirmingDeleteAll = false
     @State private var confirmingDriveRestore = false
     @State private var confirmingICloudRestore = false
@@ -21,18 +22,20 @@ struct AccountSettingsView: View {
             List {
                 accountSection
                 proSection
+                remindersSection
                 backupSection
+                aboutSection
                 dangerSection
             }
             .navigationTitle("Settings")
             .toolbar {
                 Button("Done") { dismiss() }
             }
-            .alert("Delete everything?", isPresented: $confirmingDeleteAll) {
-                Button("Delete", role: .destructive) { deleteAllData() }
+            .alert("Delete account and all data?", isPresented: $confirmingDeleteAll) {
+                Button("Delete Account", role: .destructive) { deleteAllData() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This wipes every entry, encryption keys, and account state from this device.")
+                Text("This permanently removes your Kryptos account from this device along with every vault entry, the encryption key, and all expiry reminders. You will be signed out and this cannot be undone. If you've previously backed up to iCloud or Google Drive, delete those backups separately to remove all copies.")
             }
             .alert("Restore from Google Drive?", isPresented: $confirmingDriveRestore) {
                 Button("Restore") {
@@ -178,7 +181,7 @@ struct AccountSettingsView: View {
             if let working = backup.workingMessage {
                 Label(working, systemImage: "hourglass")
                     .font(.footnote)
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(BrandPalette.primary)
             }
 
             if let feedback = backup.feedback {
@@ -189,16 +192,62 @@ struct AccountSettingsView: View {
         }
     }
 
+    private var remindersSection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { reminders.isEnabled },
+                set: { newValue in
+                    reminders.isEnabled = newValue
+                    Task {
+                        if newValue {
+                            _ = await reminders.requestAuthorization()
+                        }
+                        await reminders.sync(records: records)
+                    }
+                }
+            )) {
+                Label("Expiry reminders", systemImage: "bell.badge")
+            }
+
+            Text("Sends a local notification 30, 7, and 1 day before expiry for any entry that has an Expiry field, regardless of type.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if reminders.isEnabled, reminders.authorizationStatus == .denied {
+                Label("Notifications are turned off for Kryptos in iOS Settings. Enable them to receive expiry reminders.", systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+        } header: {
+            Text("Reminders")
+        }
+    }
+
+    private var aboutSection: some View {
+        Section("About") {
+            Link(destination: URL(string: "https://kryptos.faizalmzain.com/privacy")!) {
+                Label("Privacy Policy", systemImage: "hand.raised")
+            }
+            Link(destination: URL(string: "https://kryptos.faizalmzain.com/faq")!) {
+                Label("Terms & FAQ", systemImage: "doc.text")
+            }
+        }
+    }
+
     private var dangerSection: some View {
-        Section("Danger Zone") {
-            Text("Permanently deletes every entry and local encryption key from this device.")
+        Section {
+            Text("Permanently deletes your Kryptos account and every vault entry, encryption key, and reminder stored on this device. You will be signed out. This cannot be undone.")
                 .foregroundStyle(.secondary)
 
             Button(role: .destructive) {
                 confirmingDeleteAll = true
             } label: {
-                Label("Delete all vault data", systemImage: "trash")
+                Label("Delete account and all data", systemImage: "person.crop.circle.badge.xmark")
             }
+        } header: {
+            Text("Delete Account")
+        } footer: {
+            Text("To also remove copies stored in iCloud or Google Drive, delete those backups before deleting your account.")
         }
     }
 
@@ -208,6 +257,7 @@ struct AccountSettingsView: View {
 
     private func restoreFromICloud() async {
         await backup.restoreFromICloud(modelContext: modelContext, ownerId: ownerId)
+        await reminders.sync(records: records)
     }
 
     private func runDriveBackup(toMyDrive: Bool) async {
@@ -219,12 +269,14 @@ struct AccountSettingsView: View {
     private func restoreFromDrive() async {
         guard let token = await auth.accessToken(requiring: GoogleAuthService.appDataScope) else { return }
         await backup.restore(accessToken: token, modelContext: modelContext, ownerId: ownerId)
+        await reminders.sync(records: records)
     }
 
     private func deleteAllData() {
         allRecords.forEach { modelContext.delete($0) }
         try? modelContext.save()
         VaultCrypto.shared.destroyLocalKey()
+        Task { await reminders.cancelAll() }
         auth.signOut()
         dismiss()
     }

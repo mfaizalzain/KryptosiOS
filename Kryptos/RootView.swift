@@ -16,7 +16,7 @@ struct RootView: View {
                     .environmentObject(gate)
             }
         }
-        .tint(.indigo)
+        .tint(BrandPalette.primary)
     }
 }
 
@@ -29,22 +29,22 @@ struct LockView: View {
         VStack(spacing: 28) {
             Spacer()
 
-            VStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(.indigo.opacity(0.14))
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 56, weight: .semibold))
-                        .foregroundStyle(.indigo)
+            VStack(spacing: 18) {
+                Image("BrandMark")
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 116, height: 116)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: BrandPalette.primary.opacity(0.35), radius: 22, y: 12)
+
+                VStack(spacing: 6) {
+                    Text("Kryptos")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                    Text("Your private vault.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(width: 112, height: 112)
-
-                Text("Kryptos")
-                    .font(.largeTitle.bold())
-
-                Text("Your private vault.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -121,6 +121,14 @@ struct LockView: View {
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
                 }
+
+                HStack(spacing: 18) {
+                    Link("Privacy Policy", destination: URL(string: "https://kryptos.faizalmzain.com/privacy")!)
+                    Text("·").foregroundStyle(.secondary)
+                    Link("Terms & FAQ", destination: URL(string: "https://kryptos.faizalmzain.com/faq")!)
+                }
+                .font(.footnote)
+                .padding(.top, 6)
             }
         }
         .padding(28)

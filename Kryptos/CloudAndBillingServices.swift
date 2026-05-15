@@ -135,14 +135,14 @@ final class DriveBackupService: ObservableObject {
     func backupToICloud(records: [VaultEntryRecord]) async {
         workingMessage = "Preparing encrypted iCloud backup..."
         feedback = nil
+        var assetDirectory: URL?
         do {
             let payload = try makeBackupData(records: records)
             let recordID = CKRecord.ID(recordName: iCloudRecordName)
             let record = try await fetchICloudRecord(id: recordID) ?? CKRecord(recordType: iCloudRecordType, recordID: recordID)
             let vaultAsset = try makeICloudAsset(data: payload.vault, fileName: backupName)
-            defer { try? FileManager.default.removeItem(at: vaultAsset.fileURL) }
+            assetDirectory = vaultAsset.fileURL.deletingLastPathComponent()
 
-            record[iCloudVaultField] = nil
             record[iCloudVaultAssetField] = vaultAsset.asset
             record[iCloudKeyField] = payload.key as NSData
             record[iCloudUpdatedAtField] = Date.now as NSDate
@@ -153,6 +153,9 @@ final class DriveBackupService: ObservableObject {
             feedback = "iCloud backup complete."
         } catch {
             feedback = error.localizedDescription
+        }
+        if let assetDirectory {
+            try? FileManager.default.removeItem(at: assetDirectory)
         }
         workingMessage = nil
     }
@@ -364,30 +367,14 @@ final class DriveBackupService: ObservableObject {
     }
 
     private func fetchICloudRecord(id: CKRecord.ID) async throws -> CKRecord? {
-        try await withCheckedThrowingContinuation { continuation in
-            iCloudDatabase.fetch(withRecordID: id) { record, error in
-                if let ckError = error as? CKError, ckError.code == .unknownItem {
-                    continuation.resume(returning: nil)
-                } else if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: record)
-                }
-            }
+        do {
+            return try await iCloudDatabase.record(for: id)
+        } catch let ckError as CKError where ckError.code == .unknownItem {
+            return nil
         }
     }
 
     private func saveICloudRecord(_ record: CKRecord) async throws -> CKRecord {
-        try await withCheckedThrowingContinuation { continuation in
-            iCloudDatabase.save(record) { saved, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let saved {
-                    continuation.resume(returning: saved)
-                } else {
-                    continuation.resume(throwing: CKError(.internalError))
-                }
-            }
-        }
+        try await iCloudDatabase.save(record)
     }
 }

@@ -19,12 +19,36 @@ struct EntryDetailView: View {
         record.encryptedAttachment.flatMap { try? VaultCrypto.shared.open($0) }
     }
 
+    private var reminderText: String? {
+        guard ExpiryReminderService.shared.isEnabled else { return nil }
+        guard let expiry = ExpiryReminderService.shared.expiryDate(forFields: fields, template: record.template) else { return nil }
+        let formatted = expiry.formatted(date: .abbreviated, time: .omitted)
+        if expiry < .now {
+            return "Expired on \(formatted). Update the Expiry field to schedule new reminders."
+        }
+        return "Reminders set for 30, 7, and 1 day before \(formatted)."
+    }
+
+    private var heroShowsAttachment: Bool {
+        guard attachment != nil else { return false }
+        switch record.template {
+        case .idCard, .driversLicense, .paymentCard, .passport, .birthCertificate:
+            return true
+        case .bankAccount, .taxNumber, .apiKey, .note, .qrCode:
+            return false
+        }
+    }
+
     var body: some View {
         List {
             Section {
-                VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: attachment)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 18, bottom: 12, trailing: 18))
-                    .listRowBackground(Color.clear)
+                HStack {
+                    VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: attachment)
+                        .frame(maxWidth: 320)
+                    Spacer(minLength: 0)
+                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 18, bottom: 12, trailing: 18))
+                .listRowBackground(Color.clear)
             }
 
             let copyableFields = fields.filter { !$0.value.isEmpty }
@@ -53,12 +77,24 @@ struct EntryDetailView: View {
                 }
             }
 
-            if let attachment, record.template != .idCard, record.template != .passport, let image = UIImage(data: attachment) {
+            if let attachment, !heroShowsAttachment, let image = UIImage(data: attachment) {
                 Section("Attachment") {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+            }
+
+            if let reminderText {
+                Section {
+                    Label {
+                        Text(reminderText)
+                            .font(.footnote)
+                    } icon: {
+                        Image(systemName: "bell.badge.fill")
+                            .foregroundStyle(BrandPalette.primary)
+                    }
                 }
             }
 
@@ -97,8 +133,10 @@ struct EntryDetailView: View {
         }
         .alert("Delete this entry?", isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive) {
+                let id = record.id
                 modelContext.delete(record)
                 try? modelContext.save()
+                ExpiryReminderService.shared.cancelReminders(for: id)
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}

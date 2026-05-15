@@ -70,7 +70,7 @@ struct EntryEditorView: View {
                     }
                 }
 
-                Section("Fields") {
+                Section {
                     ForEach($fields) { $field in
                         FieldEditorRow(template: template, field: $field, isDefault: template.defaultFields.contains { $0.localizedCaseInsensitiveCompare(field.name) == .orderedSame })
                     }
@@ -83,6 +83,10 @@ struct EntryEditorView: View {
                     } label: {
                         Label("Add field", systemImage: "plus")
                     }
+                } header: {
+                    Text("Fields")
+                } footer: {
+                    reminderHint
                 }
 
                 if let attachment, let image = UIImage(data: attachment) {
@@ -144,6 +148,20 @@ struct EntryEditorView: View {
         }
     }
 
+    @ViewBuilder
+    private var reminderHint: some View {
+        if let expiry = ExpiryReminderService.shared.expiryDate(forFields: fields, template: template) {
+            Label {
+                Text("We'll remind you 30, 7, and 1 day before \(expiry.formatted(date: .abbreviated, time: .omitted)).")
+            } icon: {
+                Image(systemName: "bell.badge")
+                    .foregroundStyle(BrandPalette.primary)
+            }
+        } else {
+            Text("Add an \"Expiry\" field with a date (e.g. 12/2028 or 2028-12-31) and Kryptos will remind you 30, 7, and 1 day before it expires.")
+        }
+    }
+
     private var scanFooter: String {
         switch template {
         case .passport:
@@ -164,22 +182,27 @@ struct EntryEditorView: View {
         do {
             let encryptedFields = try VaultCrypto.shared.encodeFields(fields)
             let encryptedAttachment = try attachment.map { try VaultCrypto.shared.seal($0) }
+            let saved: VaultEntryRecord
             if let record {
                 record.template = template
                 record.title = title
                 record.encryptedFields = encryptedFields
                 record.encryptedAttachment = encryptedAttachment
                 record.updatedAt = .now
+                saved = record
             } else {
-                modelContext.insert(VaultEntryRecord(
+                let inserted = VaultEntryRecord(
                     ownerId: ownerId,
                     template: template,
                     title: title,
                     encryptedFields: encryptedFields,
                     encryptedAttachment: encryptedAttachment
-                ))
+                )
+                modelContext.insert(inserted)
+                saved = inserted
             }
             try modelContext.save()
+            Task { await ExpiryReminderService.shared.scheduleReminders(for: saved) }
             dismiss()
         } catch {
             saveError = error.localizedDescription
@@ -280,7 +303,7 @@ private struct FieldEditorRow: View {
             if isDefault {
                 Text(field.name.uppercased())
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.indigo)
+                    .foregroundStyle(BrandPalette.primary)
             } else {
                 TextField("Field name", text: $field.name)
             }

@@ -37,12 +37,22 @@ struct VaultHeroCard: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(background)
 
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.18), .white.opacity(0.0)],
+                            startPoint: .topLeading,
+                            endPoint: .center
+                        )
+                    )
+                    .blendMode(.overlay)
+
                 content
                     .padding(compact ? 14 : 20)
             }
 
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(.white.opacity(compact ? 0.12 : 0.18), lineWidth: 1)
+                .stroke(.white.opacity(compact ? 0.14 : 0.22), lineWidth: 1)
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
@@ -52,7 +62,7 @@ struct VaultHeroCard: View {
     }
 
     private var showsScannedPreview: Bool {
-        compact && scannedImage != nil && template.usesScannedPreviewOnMainPage
+        scannedImage != nil && template.usesScannedPreviewOnMainPage
     }
 
     private var scannedImage: UIImage? {
@@ -99,25 +109,25 @@ struct VaultHeroCard: View {
     private var background: LinearGradient {
         switch template {
         case .idCard:
-            LinearGradient(colors: [.indigo, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.05, green: 0.20, blue: 0.50), Color(red: 0.00, green: 0.34, blue: 0.82)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .passport:
-            LinearGradient(colors: [Color(red: 0.07, green: 0.14, blue: 0.28), .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.06, green: 0.09, blue: 0.20), Color(red: 0.10, green: 0.22, blue: 0.46)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .driversLicense:
-            LinearGradient(colors: [.teal, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.04, green: 0.30, blue: 0.45), Color(red: 0.10, green: 0.55, blue: 0.65)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .birthCertificate:
-            LinearGradient(colors: [.mint, .green], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.05, green: 0.34, blue: 0.30), Color(red: 0.12, green: 0.55, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .paymentCard:
-            LinearGradient(colors: [Color(red: 0.07, green: 0.08, blue: 0.12), .purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.08, green: 0.08, blue: 0.14), Color(red: 0.18, green: 0.10, blue: 0.32), Color(red: 0.38, green: 0.12, blue: 0.42)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .bankAccount:
-            LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.05, green: 0.32, blue: 0.40), Color(red: 0.08, green: 0.46, blue: 0.50)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .taxNumber:
-            LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.42, green: 0.18, blue: 0.10), Color(red: 0.65, green: 0.32, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .apiKey:
-            LinearGradient(colors: [.black, .gray], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.08, green: 0.10, blue: 0.16), Color(red: 0.22, green: 0.24, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .note:
-            LinearGradient(colors: [.brown, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.30, green: 0.22, blue: 0.14), Color(red: 0.55, green: 0.38, blue: 0.18)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .qrCode:
-            LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.08, green: 0.30, blue: 0.55), Color(red: 0.10, green: 0.55, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
     }
 
@@ -318,9 +328,9 @@ private extension String {
 private extension VaultTemplate {
     var usesScannedPreviewOnMainPage: Bool {
         switch self {
-        case .idCard, .driversLicense, .paymentCard:
+        case .idCard, .driversLicense, .paymentCard, .passport, .birthCertificate:
             true
-        case .passport, .birthCertificate, .bankAccount, .taxNumber, .apiKey, .note, .qrCode:
+        case .bankAccount, .taxNumber, .apiKey, .note, .qrCode:
             false
         }
     }

@@ -17,7 +17,17 @@ struct VaultListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            content
+        }
+        .task { await ExpiryReminderService.shared.sync(records: records) }
+        .onChange(of: records.map(\.updatedAt)) { _, _ in
+            Task { await ExpiryReminderService.shared.sync(records: records) }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        Group {
                 if records.isEmpty {
                     ContentUnavailableView("Your vault is empty.", systemImage: "lock.doc", description: Text("Tap Add Entry to secure your first document."))
                 } else if filteredGroups.isEmpty {
@@ -38,13 +48,22 @@ struct VaultListView: View {
                     }
                 }
             }
-            .navigationTitle("Kryptos")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search your vault")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Image(systemName: "lock.shield")
-                        .font(.title2)
-                        .foregroundStyle(.indigo)
+                    HStack(spacing: 8) {
+                        Image("BrandMark")
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        Text("Kryptos")
+                            .font(.system(.title3, design: .rounded).weight(.bold))
+                            .fixedSize()
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -75,15 +94,19 @@ struct VaultListView: View {
                             showingEditor = true
                         }
                     } label: {
-                        Label(reachedLimit ? "Unlock Pro" : "Add Entry", systemImage: reachedLimit ? "crown" : "plus")
+                        Label(reachedLimit ? "Unlock Pro" : "Add Entry", systemImage: reachedLimit ? "crown.fill" : "plus")
                             .font(.headline)
-                            .padding(.horizontal, 18)
-                            .frame(height: 54)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 22)
+                            .frame(height: 56)
+                            .background(
+                                Capsule().fill(BrandPalette.primaryGradient)
+                            )
+                            .shadow(color: BrandPalette.primary.opacity(0.35), radius: 14, y: 6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(.plain)
                     .padding(.trailing, 20)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 14)
                 }
                 .background(.clear)
             }
@@ -100,7 +123,6 @@ struct VaultListView: View {
             .sheet(isPresented: $showingSettings) {
                 AccountSettingsView()
             }
-        }
     }
 
     private var filteredGroups: [(template: VaultTemplate, records: [VaultEntryRecord])] {
@@ -128,17 +150,19 @@ private struct CategoryHeader: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: template.symbol)
-                .frame(width: 30, height: 30)
-                .background(.indigo.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .foregroundStyle(.indigo)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 32, height: 32)
+                .background(BrandPalette.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .foregroundStyle(BrandPalette.primary)
             Text(template.pluralTitle)
-                .font(.headline)
+                .font(.system(.headline, design: .rounded))
             Spacer()
             Text("\(count)")
                 .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 9)
                 .padding(.vertical, 3)
-                .background(.quaternary, in: Capsule())
+                .background(.quaternary.opacity(0.5), in: Capsule())
         }
     }
 }
@@ -203,8 +227,8 @@ private struct CarouselIndicator: View {
         HStack(spacing: 5) {
             ForEach(0..<count, id: \.self) { index in
                 Capsule()
-                    .fill(index == currentIndex ? Color.indigo : Color.secondary.opacity(0.28))
-                    .frame(width: index == currentIndex ? 16 : 5, height: 5)
+                    .fill(index == currentIndex ? BrandPalette.primary : Color.secondary.opacity(0.28))
+                    .frame(width: index == currentIndex ? 18 : 5, height: 5)
                     .animation(.snappy(duration: 0.18), value: currentIndex)
             }
         }
