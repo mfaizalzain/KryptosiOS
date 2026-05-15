@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F1730"/>
+      <stop offset="1" stop-color="#1F2A4A"/>
+    </linearGradient>
+    <linearGradient id="kg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7BA8FF"/>
+      <stop offset="1" stop-color="#0056D2"/>
+    </linearGradient>
+    <mask id="keyhole">
+      <rect width="512" height="512" fill="white"/>
+      <circle cx="170" cy="200" r="20" fill="black"/>
+      <path d="M158,200 L158,238 L182,238 L182,200 Z" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g mask="url(#keyhole)" fill="url(#kg)">
+    <rect x="122" y="114" width="96" height="284" rx="14"/>
+    <path d="M218,256 L332,114 L398,114 L284,256 Z"/>
+    <path d="M218,256 L332,398 L398,398 L284,256 Z"/>
+  </g>
+</svg>

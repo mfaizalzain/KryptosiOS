@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2400" viewBox="0 0 1080 2400" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A0F1F"/>
+      <stop offset="1" stop-color="#0E1424"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.7" r="0.6">
+      <stop offset="0" stop-color="#0056D2" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#0056D2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B8DEF"/>
+      <stop offset="1" stop-color="#0056D2"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E1424"/>
+      <stop offset="1" stop-color="#1a2238"/>
+    </linearGradient>
+    <linearGradient id="doc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8EDFA"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="2400" fill="url(#bg)"/>
+  <rect width="1080" height="2400" fill="url(#glow)"/>
+
+  <text x="540" y="220" font-size="86" font-weight="800" fill="#E6EAF5" text-anchor="middle" letter-spacing="-2">Scan once.</text>
+  <text x="540" y="320" font-size="86" font-weight="800" fill="url(#grad)" text-anchor="middle" letter-spacing="-2">Fields filled in.</text>
+  <text x="540" y="400" font-size="36" font-weight="500" fill="#9AA3BA" text-anchor="middle">On-device OCR — your camera never leaves the phone</text>
+
+  <g transform="translate(180,520)">
+    <rect width="720" height="1480" rx="80" fill="#1a2238" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+    <rect x="14" y="14" width="692" height="1452" rx="68" fill="url(#screen)"/>
+    <rect x="295" y="36" width="130" height="32" rx="16" fill="#06091a"/>
+
+    <text x="60" y="120" font-size="22" font-weight="600" fill="#E6EAF5">9:41</text>
+    <text x="660" y="120" font-size="22" fill="#E6EAF5" text-anchor="end">100%</text>
+
+    <!-- Back button -->
+    <g transform="translate(60,180)">
+      <path d="M16,20 L4,8 L16,-4" fill="none" stroke="#E6EAF5" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="60" y="270" font-size="40" font-weight="800" fill="#E6EAF5" letter-spacing="-1">Scan Driver's License</text>
+    <text x="60" y="312" font-size="22" fill="#9AA3BA">Hold steady. We'll auto-detect.</text>
+
+    <!-- Camera viewport with document -->
+    <rect x="60" y="360" width="600" height="420" rx="24" fill="#000"/>
+
+    <!-- Document inside viewport -->
+    <g transform="translate(120,420)">
+      <rect width="480" height="300" rx="16" fill="url(#doc)"/>
+      <rect x="24" y="24" width="240" height="20" rx="4" fill="#1B1B1F" opacity="0.85"/>
+      <rect x="24" y="56" width="180" height="14" rx="3" fill="#1B1B1F" opacity="0.5"/>
+      <!-- Photo -->
+      <rect x="24" y="90" width="100" height="130" rx="8" fill="#C2CBF1"/>
+      <circle cx="74" cy="135" r="22" fill="#8B96BC"/>
+      <path d="M40,200 Q74,170 108,200" fill="#8B96BC"/>
+      <!-- Lines -->
+      <rect x="148" y="100" width="200" height="14" rx="3" fill="#1B1B1F" opacity="0.75"/>
+      <rect x="148" y="124" width="160" height="12" rx="3" fill="#1B1B1F" opacity="0.45"/>
+      <rect x="148" y="160" width="180" height="14" rx="3" fill="#1B1B1F" opacity="0.75"/>
+      <rect x="148" y="184" width="140" height="12" rx="3" fill="#1B1B1F" opacity="0.45"/>
+      <rect x="148" y="220" width="220" height="14" rx="3" fill="#1B1B1F" opacity="0.75"/>
+      <rect x="148" y="244" width="100" height="12" rx="3" fill="#1B1B1F" opacity="0.45"/>
+    </g>
+
+    <!-- Scan overlay corners -->
+    <g stroke="#5B8DEF" stroke-width="6" fill="none" stroke-linecap="round">
+      <path d="M100,400 L100,440 M100,400 L140,400"/>
+      <path d="M620,400 L620,440 M620,400 L580,400"/>
+      <path d="M100,740 L100,700 M100,740 L140,740"/>
+      <path d="M620,740 L620,700 M620,740 L580,740"/>
+    </g>
+
+    <!-- Detection chip -->
+    <g transform="translate(220,395)">
+      <rect width="280" height="44" rx="22" fill="rgba(0,86,210,0.92)"/>
+      <circle cx="24" cy="22" r="6" fill="#5BE49B"/>
+      <text x="46" y="30" font-size="20" font-weight="700" fill="white">Document detected</text>
+    </g>
+
+    <!-- Extracted fields -->
+    <text x="60" y="840" font-size="26" font-weight="700" fill="#E6EAF5">Extracted fields</text>
+
+    <g transform="translate(60,870)">
+      <rect width="600" height="80" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="24" y="34" font-size="18" fill="#6E7795" letter-spacing="1">FULL NAME</text>
+      <text x="24" y="64" font-size="24" font-weight="600" fill="#E6EAF5">FAIZAL ZAIN</text>
+      <text x="576" y="50" font-size="22" fill="#5BE49B" text-anchor="end">✓</text>
+    </g>
+
+    <g transform="translate(60,970)">
+      <rect width="600" height="80" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="24" y="34" font-size="18" fill="#6E7795" letter-spacing="1">LICENSE NUMBER</text>
+      <text x="24" y="64" font-size="24" font-weight="600" fill="#E6EAF5">D87 3344 5566</text>
+      <text x="576" y="50" font-size="22" fill="#5BE49B" text-anchor="end">✓</text>
+    </g>
+
+    <g transform="translate(60,1070)">
+      <rect width="600" height="80" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="24" y="34" font-size="18" fill="#6E7795" letter-spacing="1">DATE OF BIRTH</text>
+      <text x="24" y="64" font-size="24" font-weight="600" fill="#E6EAF5">14 / 03 / 1988</text>
+      <text x="576" y="50" font-size="22" fill="#5BE49B" text-anchor="end">✓</text>
+    </g>
+
+    <g transform="translate(60,1170)">
+      <rect width="600" height="80" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="24" y="34" font-size="18" fill="#6E7795" letter-spacing="1">EXPIRY</text>
+      <text x="24" y="64" font-size="24" font-weight="600" fill="#E6EAF5">2028-09-15</text>
+      <text x="576" y="50" font-size="22" fill="#5BE49B" text-anchor="end">✓</text>
+    </g>
+
+    <!-- Save -->
+    <g transform="translate(60,1290)">
+      <rect width="600" height="100" rx="50" fill="#0056D2"/>
+      <text x="300" y="64" font-size="26" font-weight="700" fill="white" text-anchor="middle">Save to vault</text>
+    </g>
+  </g>
+</svg>

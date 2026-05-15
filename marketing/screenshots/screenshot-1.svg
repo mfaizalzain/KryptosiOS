@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2400" viewBox="0 0 1080 2400" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A0F1F"/>
+      <stop offset="1" stop-color="#0E1424"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.85" r="0.6">
+      <stop offset="0" stop-color="#0056D2" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#0056D2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B8DEF"/>
+      <stop offset="1" stop-color="#0056D2"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E1424"/>
+      <stop offset="1" stop-color="#1a2238"/>
+    </linearGradient>
+    <linearGradient id="pp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1F2A4A"/>
+      <stop offset="1" stop-color="#0F1730"/>
+    </linearGradient>
+    <linearGradient id="cc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E5F4F"/>
+      <stop offset="1" stop-color="#12876E"/>
+    </linearGradient>
+    <linearGradient id="id" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EEF2FF"/>
+      <stop offset="1" stop-color="#C2CBF1"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E6C77E"/>
+      <stop offset="0.5" stop-color="#B8923C"/>
+      <stop offset="1" stop-color="#E6C77E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="2400" fill="url(#bg)"/>
+  <rect width="1080" height="2400" fill="url(#glow)"/>
+
+  <!-- Headline -->
+  <text x="540" y="220" font-size="86" font-weight="800" fill="#E6EAF5" text-anchor="middle" letter-spacing="-2">Your most private</text>
+  <text x="540" y="320" font-size="86" font-weight="800" fill="url(#grad)" text-anchor="middle" letter-spacing="-2">documents. Yours alone.</text>
+  <text x="540" y="400" font-size="36" font-weight="500" fill="#9AA3BA" text-anchor="middle">Zero-knowledge · Encrypted on-device</text>
+
+  <!-- Phone -->
+  <g transform="translate(180,520)">
+    <!-- Phone body -->
+    <rect width="720" height="1480" rx="80" fill="#1a2238" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+    <rect x="14" y="14" width="692" height="1452" rx="68" fill="url(#screen)"/>
+
+    <!-- Notch -->
+    <rect x="295" y="36" width="130" height="32" rx="16" fill="#06091a"/>
+
+    <!-- Status bar -->
+    <text x="60" y="120" font-size="22" font-weight="600" fill="#E6EAF5">9:41</text>
+    <text x="660" y="120" font-size="22" fill="#E6EAF5" text-anchor="end">100%</text>
+
+    <!-- App header -->
+    <text x="60" y="220" font-size="44" font-weight="800" fill="#E6EAF5" letter-spacing="-1">My Vault</text>
+    <text x="60" y="262" font-size="22" fill="#9AA3BA">12 items · 4 expiring soon</text>
+
+    <!-- Search bar -->
+    <rect x="60" y="300" width="600" height="76" rx="38" fill="#1f2942" stroke="rgba(255,255,255,0.08)"/>
+    <circle cx="100" cy="338" r="11" fill="none" stroke="#9AA3BA" stroke-width="2.5"/>
+    <line x1="108" y1="346" x2="118" y2="356" stroke="#9AA3BA" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="140" y="346" font-size="22" fill="#6E7795">Search vault…</text>
+
+    <!-- Filter chips -->
+    <g transform="translate(60,420)">
+      <rect width="120" height="50" rx="25" fill="#0056D2"/>
+      <text x="60" y="32" font-size="20" font-weight="600" fill="white" text-anchor="middle">All</text>
+      <g transform="translate(140,0)">
+        <rect width="160" height="50" rx="25" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="80" y="32" font-size="20" font-weight="500" fill="#E6EAF5" text-anchor="middle">Passports</text>
+      </g>
+      <g transform="translate(320,0)">
+        <rect width="120" height="50" rx="25" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="60" y="32" font-size="20" font-weight="500" fill="#E6EAF5" text-anchor="middle">Cards</text>
+      </g>
+      <g transform="translate(460,0)">
+        <rect width="120" height="50" rx="25" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="60" y="32" font-size="20" font-weight="500" fill="#E6EAF5" text-anchor="middle">IDs</text>
+      </g>
+    </g>
+
+    <!-- Passport card -->
+    <g transform="translate(60,520)">
+      <rect width="600" height="240" rx="28" fill="url(#pp)" stroke="rgba(255,255,255,0.06)"/>
+      <rect x="32" y="32" width="160" height="36" rx="8" fill="rgba(255,255,255,0.12)"/>
+      <text x="50" y="58" font-size="18" font-weight="700" fill="white" letter-spacing="2">PASSPORT</text>
+      <text x="540" y="58" font-size="28" text-anchor="middle">🇲🇾</text>
+      <text x="32" y="160" font-size="32" font-weight="800" fill="#EEF2FF" letter-spacing="1">FAIZAL ZAIN</text>
+      <text x="32" y="200" font-size="22" fill="rgba(238,242,255,0.7)">A12345678 · Exp 2031-04-12</text>
+    </g>
+
+    <!-- Bank card -->
+    <g transform="translate(60,790)">
+      <rect width="600" height="240" rx="28" fill="url(#cc)"/>
+      <rect x="32" y="32" width="120" height="36" rx="8" fill="rgba(0,0,0,0.18)"/>
+      <text x="50" y="58" font-size="18" font-weight="700" fill="white" letter-spacing="2">DEBIT</text>
+      <rect x="32" y="86" width="64" height="48" rx="8" fill="url(#chip)"/>
+      <text x="32" y="180" font-size="28" font-family="JetBrains Mono, monospace" fill="white" letter-spacing="3">•••• 4827</text>
+      <text x="32" y="214" font-size="20" fill="rgba(255,255,255,0.85)" letter-spacing="1">VISA · 09/29</text>
+    </g>
+
+    <!-- ID card -->
+    <g transform="translate(60,1060)">
+      <rect width="600" height="240" rx="28" fill="url(#id)"/>
+      <rect x="32" y="32" width="240" height="36" rx="8" fill="rgba(0,0,0,0.08)"/>
+      <text x="50" y="58" font-size="18" font-weight="700" fill="#1B1B1F" letter-spacing="2">DRIVER'S LICENSE</text>
+      <text x="32" y="160" font-size="32" font-weight="800" fill="#1B1B1F" letter-spacing="1">FAIZAL ZAIN</text>
+      <text x="32" y="200" font-size="22" fill="rgba(0,0,0,0.6)">Class B · Exp 2028</text>
+    </g>
+
+    <!-- FAB -->
+    <g transform="translate(560,1340)">
+      <circle cx="50" cy="50" r="50" fill="#0056D2"/>
+      <path d="M50,30 L50,70 M30,50 L70,50" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

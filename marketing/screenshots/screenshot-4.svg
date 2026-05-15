@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="2400" viewBox="0 0 1080 2400" font-family="Inter, -apple-system, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A0F1F"/>
+      <stop offset="1" stop-color="#0E1424"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.6">
+      <stop offset="0" stop-color="#0056D2" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#0056D2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B8DEF"/>
+      <stop offset="1" stop-color="#0056D2"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E1424"/>
+      <stop offset="1" stop-color="#1a2238"/>
+    </linearGradient>
+    <linearGradient id="pp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1F2A4A"/>
+      <stop offset="1" stop-color="#0F1730"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="2400" fill="url(#bg)"/>
+  <rect width="1080" height="2400" fill="url(#glow)"/>
+
+  <text x="540" y="220" font-size="86" font-weight="800" fill="#E6EAF5" text-anchor="middle" letter-spacing="-2">Read NFC chips.</text>
+  <text x="540" y="320" font-size="86" font-weight="800" fill="url(#grad)" text-anchor="middle" letter-spacing="-2">Passports &amp; cards.</text>
+  <text x="540" y="400" font-size="36" font-weight="500" fill="#9AA3BA" text-anchor="middle">ICAO 9303 ePassport · Contactless EMV</text>
+
+  <g transform="translate(180,520)">
+    <rect width="720" height="1480" rx="80" fill="#1a2238" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+    <rect x="14" y="14" width="692" height="1452" rx="68" fill="url(#screen)"/>
+    <rect x="295" y="36" width="130" height="32" rx="16" fill="#06091a"/>
+
+    <text x="60" y="120" font-size="22" font-weight="600" fill="#E6EAF5">9:41</text>
+    <text x="660" y="120" font-size="22" fill="#E6EAF5" text-anchor="end">100%</text>
+
+    <text x="60" y="270" font-size="40" font-weight="800" fill="#E6EAF5" letter-spacing="-1">Read passport chip</text>
+    <text x="60" y="312" font-size="22" fill="#9AA3BA">Hold the passport against the back</text>
+
+    <!-- Passport book illustration -->
+    <g transform="translate(120,400)">
+      <!-- shadow -->
+      <ellipse cx="240" cy="430" rx="200" ry="14" fill="rgba(0,0,0,0.4)"/>
+
+      <!-- passport -->
+      <rect width="480" height="380" rx="20" fill="url(#pp)" stroke="rgba(255,255,255,0.1)"/>
+      <!-- title -->
+      <text x="240" y="80" font-size="24" font-weight="700" fill="rgba(238,242,255,0.7)" text-anchor="middle" letter-spacing="3">PASSPORT</text>
+      <text x="240" y="118" font-size="18" fill="rgba(238,242,255,0.5)" text-anchor="middle" letter-spacing="2">MALAYSIA</text>
+
+      <!-- Crest circle -->
+      <circle cx="240" cy="200" r="50" fill="none" stroke="rgba(238,242,255,0.4)" stroke-width="2"/>
+      <circle cx="240" cy="200" r="32" fill="none" stroke="rgba(238,242,255,0.3)" stroke-width="1.5"/>
+      <text x="240" y="208" font-size="22" fill="rgba(238,242,255,0.5)" text-anchor="middle">✦</text>
+
+      <!-- NFC symbol -->
+      <g transform="translate(220,290)">
+        <path d="M-20,0 a20,20 0 0 1 40,0 M-10,8 a10,10 0 0 1 20,0" fill="none" stroke="#5B8DEF" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="0" cy="14" r="3" fill="#5B8DEF"/>
+      </g>
+
+      <!-- Scanning waves -->
+      <g fill="none" stroke="#5B8DEF" stroke-width="3" stroke-linecap="round" opacity="0.7">
+        <path d="M380,150 a90,90 0 0 1 0,140"/>
+        <path d="M410,130 a130,130 0 0 1 0,180" opacity="0.5"/>
+        <path d="M440,110 a170,170 0 0 1 0,220" opacity="0.3"/>
+      </g>
+    </g>
+
+    <!-- Status -->
+    <g transform="translate(60,860)">
+      <rect width="600" height="100" rx="22" fill="rgba(91,141,239,0.12)" stroke="rgba(91,141,239,0.4)"/>
+      <circle cx="50" cy="50" r="20" fill="rgba(91,141,239,0.25)"/>
+      <circle cx="50" cy="50" r="10" fill="#5B8DEF">
+        <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <text x="92" y="44" font-size="22" font-weight="700" fill="#E6EAF5">Reading chip…</text>
+      <text x="92" y="74" font-size="18" fill="#9AA3BA">Keep the passport still</text>
+    </g>
+
+    <!-- Data extracted -->
+    <text x="60" y="1030" font-size="26" font-weight="700" fill="#E6EAF5">Data read from chip</text>
+
+    <g transform="translate(60,1060)">
+      <rect width="290" height="100" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="20" y="36" font-size="16" fill="#6E7795" letter-spacing="1">DOC NO</text>
+      <text x="20" y="68" font-size="22" font-weight="600" fill="#E6EAF5">A12345678</text>
+      <text x="20" y="92" font-size="14" fill="#5BE49B">✓ Verified</text>
+    </g>
+    <g transform="translate(370,1060)">
+      <rect width="290" height="100" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="20" y="36" font-size="16" fill="#6E7795" letter-spacing="1">NATIONALITY</text>
+      <text x="20" y="68" font-size="22" font-weight="600" fill="#E6EAF5">MYS</text>
+      <text x="20" y="92" font-size="14" fill="#5BE49B">✓ Verified</text>
+    </g>
+
+    <g transform="translate(60,1180)">
+      <rect width="600" height="100" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+      <text x="20" y="36" font-size="16" fill="#6E7795" letter-spacing="1">FULL NAME</text>
+      <text x="20" y="68" font-size="22" font-weight="600" fill="#E6EAF5">FAIZAL ZAIN</text>
+      <text x="20" y="92" font-size="14" fill="#5BE49B">✓ Verified · Signed by MY-eMRTD</text>
+    </g>
+
+    <!-- Save button -->
+    <g transform="translate(60,1320)">
+      <rect width="600" height="100" rx="50" fill="#0056D2"/>
+      <text x="300" y="64" font-size="26" font-weight="700" fill="white" text-anchor="middle">Save to vault</text>
+    </g>
+  </g>
+</svg>
