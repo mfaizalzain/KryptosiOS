@@ -48,8 +48,9 @@ struct DocumentScanView: UIViewControllerRepresentable {
             let imageData = image.jpegData(compressionQuality: 0.82)
             recognizeText(in: image) { [template, onComplete] text in
                 let fields = OCRParser.parse(text: text, template: template)
-                onComplete(fields, text, imageData)
-                controller.dismiss(animated: true)
+                controller.dismiss(animated: true) {
+                    onComplete(fields, text, imageData)
+                }
             }
         }
 
@@ -65,10 +66,37 @@ struct DocumentScanView: UIViewControllerRepresentable {
                 DispatchQueue.main.async { completion(text) }
             }
             request.recognitionLevel = .accurate
+            request.recognitionLanguages = ["en-US"]
             request.usesLanguageCorrection = true
+            let orientation = CGImagePropertyOrientation(image.imageOrientation)
             DispatchQueue.global(qos: .userInitiated).async {
-                try? VNImageRequestHandler(cgImage: cgImage).perform([request])
+                try? VNImageRequestHandler(cgImage: cgImage, orientation: orientation).perform([request])
             }
+        }
+    }
+}
+
+private extension CGImagePropertyOrientation {
+    init(_ orientation: UIImage.Orientation) {
+        switch orientation {
+        case .up:
+            self = .up
+        case .upMirrored:
+            self = .upMirrored
+        case .down:
+            self = .down
+        case .downMirrored:
+            self = .downMirrored
+        case .left:
+            self = .left
+        case .leftMirrored:
+            self = .leftMirrored
+        case .right:
+            self = .right
+        case .rightMirrored:
+            self = .rightMirrored
+        @unknown default:
+            self = .up
         }
     }
 }
@@ -84,9 +112,9 @@ enum OCRParser {
         switch template {
         case .paymentCard:
             return compactFields([
-                ("Number", firstMatch(in: joined, pattern: #"(\d[ -]?){13,19}"#)?.digitsOnly ?? ""),
-                ("Expiry", firstMatch(in: joined, pattern: #"\b(0[1-9]|1[0-2])\s*/?\s*([0-9]{2})\b"#)?.digitsOnly ?? ""),
-                ("Cardholder", probableName(lines: lines))
+                ("Number", paymentCardNumber(in: lines)),
+                ("Expiry", paymentExpiry(in: joined)),
+                ("Cardholder", probableCardholder(lines: lines))
             ])
         case .passport:
             return compactFields([
@@ -146,6 +174,72 @@ enum OCRParser {
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, range: range), let swiftRange = Range(match.range, in: text) else { return nil }
         return String(text[swiftRange])
+    }
+
+    private static func paymentCardNumber(in lines: [String]) -> String {
+        var candidates: [String] = []
+        for line in lines + [lines.joined(separator: " ")] {
+            let normalized = normalizePaymentDigits(line)
+            candidates.append(contentsOf: matches(in: normalized, pattern: #"(?:\d[ -]*){13,19}"#).map(\.digitsOnly))
+        }
+        let validCandidates = candidates
+            .filter { (13...19).contains($0.count) }
+            .removingDuplicates()
+        return validCandidates.first(where: isLuhnValid) ?? validCandidates.first ?? ""
+    }
+
+    private static func paymentExpiry(in text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"\b(0[1-9]|1[0-2])\s*[/\-]?\s*([2-9][0-9])\b"#) else { return "" }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard
+            let match = regex.firstMatch(in: text, range: range),
+            match.numberOfRanges >= 3,
+            let monthRange = Range(match.range(at: 1), in: text),
+            let yearRange = Range(match.range(at: 2), in: text)
+        else { return "" }
+        return "\(text[monthRange])\(text[yearRange])"
+    }
+
+    private static func probableCardholder(lines: [String]) -> String {
+        lines.first { line in
+            let upper = line.uppercased()
+            let letters = upper.filter { $0.isLetter }.count
+            let blocked = ["VISA", "MASTERCARD", "CARD", "DEBIT", "CREDIT", "VALID", "THRU", "EXP", "BANK"]
+            return letters > 5 && upper == line && !blocked.contains { upper.contains($0) }
+        } ?? ""
+    }
+
+    private static func normalizePaymentDigits(_ text: String) -> String {
+        String(text.map { character in
+            switch character {
+            case "O", "o", "Q": "0"
+            case "I", "l", "|": "1"
+            case "S", "s": "5"
+            case "B": "8"
+            default: character
+            }
+        })
+    }
+
+    private static func matches(in text: String, pattern: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.matches(in: text, range: range).compactMap { match in
+            guard let swiftRange = Range(match.range, in: text) else { return nil }
+            return String(text[swiftRange])
+        }
+    }
+
+    private static func isLuhnValid(_ digits: String) -> Bool {
+        let reversed = digits.reversed().compactMap { Int(String($0)) }
+        guard reversed.count == digits.count else { return false }
+        let checksum = reversed.enumerated().reduce(0) { total, pair in
+            let (index, digit) = pair
+            guard index.isMultiple(of: 2) == false else { return total + digit }
+            let doubled = digit * 2
+            return total + (doubled > 9 ? doubled - 9 : doubled)
+        }
+        return checksum.isMultiple(of: 10)
     }
 
     private static func firstDate(in text: String) -> String {
@@ -240,8 +334,9 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard let value = (metadataObjects.first as? AVMetadataMachineReadableCodeObject)?.stringValue else { return }
         session.stopRunning()
-        onResult?(value)
-        dismiss(animated: true)
+        dismiss(animated: true) { [onResult] in
+            onResult?(value)
+        }
     }
 
     private func showUnavailable() {
@@ -258,22 +353,9 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
     }
 }
 
-struct NFCScanInfoView: View {
-    @Environment(\.dismiss) private var dismiss
-    let template: VaultTemplate
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView(
-                "NFC scan needs entitlement setup",
-                systemImage: "wave.3.right.circle",
-                description: Text(template == .passport ? "Core NFC can read ISO 7816 passport chips after adding the NFC entitlement and passport AIDs. The Android JMRTD flow is intentionally isolated from the rest of the vault so it can be implemented here without changing storage or UI." : "iOS restricts payment-card NFC access. The app keeps this flow separate for supported entitlements and future issuer-approved implementations.")
-            )
-            .navigationTitle("Scan NFC")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                Button("Done") { dismiss() }
-            }
-        }
+private extension Array where Element: Hashable {
+    func removingDuplicates() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
     }
 }

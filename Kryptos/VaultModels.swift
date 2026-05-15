@@ -85,10 +85,6 @@ enum VaultTemplate: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var supportsNFC: Bool {
-        self == .passport || self == .paymentCard
-    }
-
     var heroFieldKeys: Set<String> {
         switch self {
         case .idCard: ["full name", "id number", "date of birth", "nationality"]

@@ -49,7 +49,7 @@ struct EntryEditorView: View {
                     }
                 }
 
-                if template.supportsCameraScan || template.supportsNFC {
+                if template.supportsCameraScan {
                     Section {
                         Button {
                             activeScan = .document
@@ -63,13 +63,6 @@ struct EntryEditorView: View {
                         } label: {
                             Label("Scan QR", systemImage: "qrcode.viewfinder")
                         }
-
-                        Button {
-                            activeScan = .nfc
-                        } label: {
-                            Label("Scan NFC", systemImage: "wave.3.right.circle")
-                        }
-                        .disabled(!template.supportsNFC)
                     } header: {
                         Text("Fill from scan")
                     } footer: {
@@ -131,8 +124,6 @@ struct EntryEditorView: View {
                         applyQR(value)
                         activeScan = nil
                     }
-                case .nfc:
-                    NFCScanInfoView(template: template)
                 }
             }
             .alert("Potential duplicate", isPresented: Binding(get: { duplicate != nil }, set: { if !$0 { duplicate = nil } })) {
@@ -156,9 +147,9 @@ struct EntryEditorView: View {
     private var scanFooter: String {
         switch template {
         case .passport:
-            "Use the camera for the photo page. NFC passport reading needs the iOS Core NFC entitlement and an ISO 7816 passport implementation."
+            "Use the camera for the photo page. OCR can prefill fields, and you can edit every value before saving."
         case .paymentCard:
-            "Camera scan extracts visible card text. iOS restricts EMV NFC access; the NFC hook is kept separate for entitlement-backed implementation."
+            "Camera scan extracts visible card text. You can edit every value before saving."
         default:
             "Camera and QR scans can prefill fields. You can edit every value before saving."
         }
@@ -277,13 +268,11 @@ struct EntryEditorView: View {
 private enum ScanMode: Identifiable {
     case document
     case qr
-    case nfc
 
     var id: String {
         switch self {
         case .document: "document"
         case .qr: "qr"
-        case .nfc: "nfc"
         }
     }
 }

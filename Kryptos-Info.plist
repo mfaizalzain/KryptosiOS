@@ -33,8 +33,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
-	<key>NFCReaderUsageDescription</key>
-	<string>Kryptos uses NFC to read supported passport chips when the app entitlement is enabled.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Kryptos uses the camera to scan documents, cards, and QR codes into your encrypted vault.</string>
 	<key>NSFaceIDUsageDescription</key>
