@@ -23,12 +23,16 @@ struct VaultHeroCard: View {
     private var card: some View {
         ZStack {
             if showsScannedPreview, let scannedImage {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.black.opacity(0.06))
+
                 Image(uiImage: scannedImage)
                     .resizable()
-                    .scaledToFill()
-                    .overlay(alignment: .bottomLeading) {
-                        scannedPreviewLabel
-                    }
+                    .scaledToFit()
+                    .padding(6)
+                    .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
+
+                scannedPreviewBadge
             } else {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(background)
@@ -55,29 +59,23 @@ struct VaultHeroCard: View {
         attachment.flatMap(UIImage.init(data:))
     }
 
-    private var scannedPreviewLabel: some View {
-        HStack(spacing: 8) {
-            Image(systemName: template.symbol)
-                .font(.caption.weight(.semibold))
-            VStack(alignment: .leading, spacing: 1) {
+    private var scannedPreviewBadge: some View {
+        VStack {
+            HStack(spacing: 6) {
+                Image(systemName: template.symbol)
+                    .font(.caption2.weight(.semibold))
                 Text(title.ifEmpty(template.title))
-                    .font(.caption.weight(.bold))
+                    .font(.caption2.weight(.bold))
                     .lineLimit(1)
-                Text("Scanned")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.78))
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.black.opacity(0.52), in: Capsule())
+            .padding(8)
+
+            Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(
-            LinearGradient(
-                colors: [.black.opacity(0.72), .black.opacity(0.18), .clear],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-        )
     }
 
     @ViewBuilder
