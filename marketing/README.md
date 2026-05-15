@@ -26,13 +26,30 @@ marketing/
    - Paste the **Review Notes** block from `App-Store-Listing.md` into "Notes for Reviewer".
 4. Submit for Review.
 
-## Re-rendering screenshots
+## Using real device/simulator screenshots
+
+iOS simulator and device screenshots always include an alpha channel, which **App Store Connect rejects** ("image cannot have an alpha channel"). Drop your raw PNGs into any folder and run:
+
+```bash
+marketing/scripts/prep-screenshots.sh ~/Desktop/raw-screenshots
+```
+
+This will:
+- Strip the alpha channel (App Store requirement).
+- Scale + pad each image to **1320×2868** (the required iPhone 6.9" slot size) using the brand navy as the letterbox fill so off-ratio captures still look intentional.
+- Write the cleaned PNGs into `marketing/screenshots/iphone-6.9/`, overwriting any placeholders.
+
+Pass a second argument to write somewhere else: `prep-screenshots.sh <input> <output>`.
+
+## Re-rendering the placeholder artboards (optional)
 
 ```bash
 cd marketing/screenshots
 for i in 1 2 3 4 5; do
   rsvg-convert -w 1320 "screenshot-$i.svg" -o /tmp/ks.png
   sips --cropToHeightWidth 2868 1320 /tmp/ks.png --out "iphone-6.9/screenshot-$i.png"
+  ffmpeg -y -loglevel error -i "iphone-6.9/screenshot-$i.png" -vf "format=rgb24" /tmp/x.png
+  mv /tmp/x.png "iphone-6.9/screenshot-$i.png"
 done
 ```
 
