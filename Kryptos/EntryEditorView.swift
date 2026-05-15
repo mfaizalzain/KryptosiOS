@@ -49,19 +49,20 @@ struct EntryEditorView: View {
                     }
                 }
 
-                if template.supportsCameraScan {
+                if template.supportsCameraScan || template == .qrCode {
                     Section {
-                        Button {
-                            activeScan = .document
-                        } label: {
-                            Label("Scan document", systemImage: "doc.viewfinder")
+                        if template.supportsCameraScan {
+                            Button {
+                                activeScan = .document
+                            } label: {
+                                Label("Scan document", systemImage: "doc.viewfinder")
+                            }
                         }
-                        .disabled(!template.supportsCameraScan)
 
                         Button {
                             activeScan = .qr
                         } label: {
-                            Label("Scan QR", systemImage: "qrcode.viewfinder")
+                            Label(template == .qrCode ? "Scan QR to import" : "Scan QR", systemImage: "qrcode.viewfinder")
                         }
                     } header: {
                         Text("Fill from scan")
@@ -168,6 +169,8 @@ struct EntryEditorView: View {
             "Use the camera for the photo page. OCR can prefill fields, and you can edit every value before saving."
         case .paymentCard:
             "Camera scan extracts visible card text. You can edit every value before saving."
+        case .qrCode:
+            "Point the camera at any QR code to import its contents. Kryptos can regenerate the same QR from this entry."
         default:
             "Camera and QR scans can prefill fields. You can edit every value before saving."
         }
