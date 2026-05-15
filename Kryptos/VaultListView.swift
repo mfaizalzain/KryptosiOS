@@ -23,27 +23,19 @@ struct VaultListView: View {
                 } else if filteredGroups.isEmpty {
                     ContentUnavailableView.search(text: searchText)
                 } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 20) {
-                            ForEach(filteredGroups, id: \.template) { group in
-                                Section {
-                                    VStack(spacing: 12) {
-                                        ForEach(group.records) { record in
-                                            NavigationLink(value: record.id) {
-                                                HeroCardTile(record: record)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                } header: {
-                                    CategoryHeader(template: group.template, count: group.records.count)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .padding(.bottom, 84)
-                    }
+	                    ScrollView {
+	                        LazyVStack(alignment: .leading, spacing: 22) {
+	                            ForEach(filteredGroups, id: \.template) { group in
+	                                VStack(alignment: .leading, spacing: 10) {
+	                                    CategoryHeader(template: group.template, count: group.records.count)
+	                                    CategoryCarousel(records: group.records)
+	                                }
+	                            }
+	                        }
+	                        .padding(.horizontal, 18)
+	                        .padding(.vertical, 12)
+	                        .padding(.bottom, 84)
+	                    }
                 }
             }
             .navigationTitle("Kryptos")
@@ -151,12 +143,40 @@ private struct CategoryHeader: View {
     }
 }
 
+private struct CategoryCarousel: View {
+    let records: [VaultEntryRecord]
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 12) {
+                    ForEach(records) { record in
+                        NavigationLink(value: record.id) {
+                            HeroCardTile(record: record)
+                                .frame(width: cardWidth(in: proxy.size.width))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned)
+        }
+        .frame(height: 138)
+    }
+
+    private func cardWidth(in availableWidth: CGFloat) -> CGFloat {
+        max(280, availableWidth)
+    }
+}
+
 private struct HeroCardTile: View {
     let record: VaultEntryRecord
 
     var body: some View {
         let fields = (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
         VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: nil, compact: true)
-            .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
     }
 }

@@ -9,17 +9,31 @@ struct VaultHeroCard: View {
     var compact = false
 
     var body: some View {
+        if compact {
+            card
+                .foregroundStyle(.white)
+                .frame(height: 132)
+        } else {
+            card
+                .foregroundStyle(.white)
+                .aspectRatio(template == .note ? 1.35 : 1.586, contentMode: .fit)
+        }
+    }
+
+    private var card: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(background)
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(.white.opacity(compact ? 0.12 : 0.18), lineWidth: 1)
 
             content
-                .padding(compact ? 16 : 20)
+                .padding(compact ? 14 : 20)
         }
-        .foregroundStyle(.white)
-        .aspectRatio(template == .note ? 1.35 : 1.586, contentMode: .fit)
+    }
+
+    private var cornerRadius: CGFloat {
+        compact ? 14 : 22
     }
 
     @ViewBuilder
@@ -66,20 +80,22 @@ struct VaultHeroCard: View {
     }
 
     private var identityCard: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: compact ? 12 : 16) {
             photoSlot
-                .frame(width: compact ? 72 : 92)
+                .frame(width: compact ? 58 : 92)
 
-            VStack(alignment: .leading, spacing: compact ? 8 : 12) {
+            VStack(alignment: .leading, spacing: compact ? 5 : 12) {
                 Text(title.isEmpty ? template.title.uppercased() : title)
-                    .font((compact ? Font.headline : Font.title3).bold())
+                    .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
 
                 LabelValue(label: template == .passport ? "Number" : "Identifier", value: fields.firstValue("Passport number", "ID number", "License number"))
                 LabelValue(label: "Name", value: fields.firstValue("Full name", "Surname", "Given names"))
-                HStack {
-                    LabelValue(label: "DOB", value: fields.value("Date of birth"))
-                    LabelValue(label: "Expiry", value: fields.value("Expiry"))
+                if !compact {
+                    HStack {
+                        LabelValue(label: "DOB", value: fields.value("Date of birth"))
+                        LabelValue(label: "Expiry", value: fields.value("Expiry"))
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -87,20 +103,20 @@ struct VaultHeroCard: View {
     }
 
     private var paymentCard: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: compact ? 7 : 10) {
             HStack {
                 Text(fields.value("Issuer").isEmpty ? title.ifEmpty("KRYPTOS CARD") : fields.value("Issuer"))
-                    .font(.headline.bold())
+                    .font((compact ? Font.subheadline : Font.headline).bold())
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "creditcard.chip")
-                    .font(.title2)
+                    .font(compact ? .body : .title2)
             }
 
             Spacer()
 
             Text(maskCard(fields.firstValue("Number", "Card number")))
-                .font(.system(size: compact ? 20 : 24, weight: .semibold, design: .monospaced))
+                .font(.system(size: compact ? 17 : 24, weight: .semibold, design: .monospaced))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
@@ -113,69 +129,70 @@ struct VaultHeroCard: View {
     }
 
     private var documentCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: compact ? 8 : 14) {
             HStack {
                 Image(systemName: template.symbol)
-                    .font(.title2)
+                    .font(compact ? .body : .title2)
                 Text(title.ifEmpty(template.title))
-                    .font(.title3.bold())
+                    .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
             }
             Spacer()
-            ForEach(fields.prefix(compact ? 3 : 5)) { field in
+            ForEach(fields.prefix(compact ? 2 : 5)) { field in
                 LabelValue(label: field.name, value: field.value)
             }
         }
     }
 
     private var apiKeyCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: compact ? 8 : 12) {
             HStack {
                 Image(systemName: "key.fill")
                 Text(fields.value("Service").ifEmpty(title.ifEmpty("API Key")))
-                    .font(.title3.bold())
+                    .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
             }
             Spacer()
             Text(maskSecret(fields.firstValue("Key", "Secret")))
-                .font(.system(.headline, design: .monospaced))
-                .lineLimit(2)
+                .font(.system(compact ? .subheadline : .headline, design: .monospaced))
+                .lineLimit(compact ? 1 : 2)
             LabelValue(label: "Environment", value: fields.value("Environment"))
         }
     }
 
     private var noteCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: compact ? 8 : 12) {
             Text(title.ifEmpty("Secure Note"))
-                .font(.title3.bold())
+                .font((compact ? Font.subheadline : Font.title3).bold())
+                .lineLimit(1)
             Text(fields.value("Content").ifEmpty("No content"))
-                .font(.body)
-                .lineLimit(compact ? 4 : 8)
+                .font(compact ? .caption : .body)
+                .lineLimit(compact ? 3 : 8)
             Spacer()
         }
     }
 
     private var qrCard: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: compact ? 12 : 16) {
             if let image = QRCode.makeImage(from: fields.value("Data")) {
                 Image(uiImage: image)
                     .interpolation(.none)
                     .resizable()
                     .scaledToFit()
-                    .padding(8)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .frame(width: compact ? 96 : 130)
+                    .padding(compact ? 6 : 8)
+                    .background(.white, in: RoundedRectangle(cornerRadius: compact ? 8 : 12, style: .continuous))
+                    .frame(width: compact ? 72 : 130)
             } else {
                 Image(systemName: "qrcode")
-                    .font(.system(size: 64))
+                    .font(.system(size: compact ? 42 : 64))
             }
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: compact ? 6 : 10) {
                 Text(title.ifEmpty("QR Code"))
-                    .font(.title3.bold())
+                    .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(2)
                 Text(fields.value("Data"))
-                    .font(.caption)
-                    .lineLimit(4)
+                    .font(compact ? .caption2 : .caption)
+                    .lineLimit(compact ? 3 : 4)
                     .foregroundStyle(.white.opacity(0.82))
             }
             Spacer(minLength: 0)
@@ -193,7 +210,7 @@ struct VaultHeroCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
                 Image(systemName: "person.crop.rectangle")
-                    .font(.title)
+                    .font(compact ? .title3 : .title)
                     .foregroundStyle(.white.opacity(0.78))
             }
         }
