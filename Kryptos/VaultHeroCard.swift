@@ -22,18 +22,62 @@ struct VaultHeroCard: View {
 
     private var card: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(background)
+            if showsScannedPreview, let scannedImage {
+                Image(uiImage: scannedImage)
+                    .resizable()
+                    .scaledToFill()
+                    .overlay(alignment: .bottomLeading) {
+                        scannedPreviewLabel
+                    }
+            } else {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(background)
+
+                content
+                    .padding(compact ? 14 : 20)
+            }
+
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.white.opacity(compact ? 0.12 : 0.18), lineWidth: 1)
-
-            content
-                .padding(compact ? 14 : 20)
         }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     private var cornerRadius: CGFloat {
         compact ? 14 : 22
+    }
+
+    private var showsScannedPreview: Bool {
+        compact && scannedImage != nil && template.usesScannedPreviewOnMainPage
+    }
+
+    private var scannedImage: UIImage? {
+        attachment.flatMap(UIImage.init(data:))
+    }
+
+    private var scannedPreviewLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: template.symbol)
+                .font(.caption.weight(.semibold))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title.ifEmpty(template.title))
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text("Scanned")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.78))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            LinearGradient(
+                colors: [.black.opacity(0.72), .black.opacity(0.18), .clear],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+        )
     }
 
     @ViewBuilder
@@ -270,5 +314,16 @@ enum QRCode {
 private extension String {
     func ifEmpty(_ fallback: String) -> String {
         isEmpty ? fallback : self
+    }
+}
+
+private extension VaultTemplate {
+    var usesScannedPreviewOnMainPage: Bool {
+        switch self {
+        case .idCard, .driversLicense, .paymentCard:
+            true
+        case .passport, .birthCertificate, .bankAccount, .taxNumber, .apiKey, .note, .qrCode:
+            false
+        }
     }
 }

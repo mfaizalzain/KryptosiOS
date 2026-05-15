@@ -218,7 +218,8 @@ private struct HeroCardTile: View {
 
     var body: some View {
         let fields = (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
-        VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: nil, compact: true)
+        let attachment = record.encryptedAttachment.flatMap { try? VaultCrypto.shared.open($0) }
+        VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: attachment, compact: true)
             .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
     }
 }
