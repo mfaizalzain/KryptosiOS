@@ -23,19 +23,19 @@ struct VaultListView: View {
                 } else if filteredGroups.isEmpty {
                     ContentUnavailableView.search(text: searchText)
                 } else {
-	                    ScrollView {
-	                        LazyVStack(alignment: .leading, spacing: 22) {
-	                            ForEach(filteredGroups, id: \.template) { group in
-	                                VStack(alignment: .leading, spacing: 10) {
-	                                    CategoryHeader(template: group.template, count: group.records.count)
-	                                    CategoryCarousel(records: group.records)
-	                                }
-	                            }
-	                        }
-	                        .padding(.horizontal, 18)
-	                        .padding(.vertical, 12)
-	                        .padding(.bottom, 84)
-	                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 22) {
+                            ForEach(filteredGroups, id: \.template) { group in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    CategoryHeader(template: group.template, count: group.records.count)
+                                    CategoryCarousel(records: group.records)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .padding(.bottom, 84)
+                    }
                 }
             }
             .navigationTitle("Kryptos")
@@ -145,29 +145,71 @@ private struct CategoryHeader: View {
 
 private struct CategoryCarousel: View {
     let records: [VaultEntryRecord]
+    @State private var visibleRecordID: UUID?
 
     var body: some View {
-        GeometryReader { proxy in
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 12) {
-                    ForEach(records) { record in
-                        NavigationLink(value: record.id) {
-                            HeroCardTile(record: record)
-                                .frame(width: cardWidth(in: proxy.size.width))
+        VStack(spacing: 8) {
+            GeometryReader { proxy in
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(records) { record in
+                            NavigationLink(value: record.id) {
+                                HeroCardTile(record: record)
+                                    .frame(width: cardWidth(in: proxy.size.width))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollIndicators(.hidden)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $visibleRecordID)
+                .onAppear {
+                    visibleRecordID = visibleRecordID ?? records.first?.id
+                }
+                .onChange(of: records.map(\.id)) { _, ids in
+                    if visibleRecordID.map({ ids.contains($0) }) != true {
+                        visibleRecordID = ids.first
                     }
                 }
-                .scrollTargetLayout()
             }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned)
+
+            if records.count > 1 {
+                CarouselIndicator(count: records.count, currentIndex: currentIndex)
+            }
         }
-        .frame(height: 138)
+        .frame(height: records.count > 1 ? 154 : 138)
     }
 
     private func cardWidth(in availableWidth: CGFloat) -> CGFloat {
         max(280, availableWidth)
+    }
+
+    private var currentIndex: Int {
+        guard
+            let visibleRecordID,
+            let index = records.firstIndex(where: { $0.id == visibleRecordID })
+        else { return 0 }
+        return index
+    }
+}
+
+private struct CarouselIndicator: View {
+    let count: Int
+    let currentIndex: Int
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<count, id: \.self) { index in
+                Capsule()
+                    .fill(index == currentIndex ? Color.indigo : Color.secondary.opacity(0.28))
+                    .frame(width: index == currentIndex ? 16 : 5, height: 5)
+                    .animation(.snappy(duration: 0.18), value: currentIndex)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("\(currentIndex + 1) of \(count)")
     }
 }
 
