@@ -90,6 +90,10 @@ final class DriveBackupService: ObservableObject {
     private let iCloudContainerIdentifier = "iCloud.com.fmz.kryptos"
     private let iCloudRecordType = "KryptosVaultBackup"
     private let iCloudRecordName = "vault"
+    private let iCloudVaultField = "vault"
+    private let iCloudVaultAssetField = "vaultAsset"
+    private let iCloudKeyField = "key"
+    private let iCloudUpdatedAtField = "updatedAt"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
@@ -135,9 +139,13 @@ final class DriveBackupService: ObservableObject {
             let payload = try makeBackupData(records: records)
             let recordID = CKRecord.ID(recordName: iCloudRecordName)
             let record = try await fetchICloudRecord(id: recordID) ?? CKRecord(recordType: iCloudRecordType, recordID: recordID)
-            record["vault"] = payload.vault as NSData
-            record["key"] = payload.key as NSData
-            record["updatedAt"] = Date.now as NSDate
+            let vaultAsset = try makeICloudAsset(data: payload.vault, fileName: backupName)
+            defer { try? FileManager.default.removeItem(at: vaultAsset.fileURL) }
+
+            record[iCloudVaultField] = nil
+            record[iCloudVaultAssetField] = vaultAsset.asset
+            record[iCloudKeyField] = payload.key as NSData
+            record[iCloudUpdatedAtField] = Date.now as NSDate
 
             workingMessage = "Uploading to iCloud..."
             _ = try await saveICloudRecord(record)
@@ -159,10 +167,7 @@ final class DriveBackupService: ObservableObject {
                 workingMessage = nil
                 return
             }
-            guard
-                let vaultData = record["vault"] as? Data,
-                let keyData = record["key"] as? Data
-            else {
+            guard let vaultData = try iCloudVaultData(from: record), let keyData = record[iCloudKeyField] as? Data else {
                 feedback = "The iCloud backup is incomplete."
                 workingMessage = nil
                 return
@@ -238,6 +243,25 @@ final class DriveBackupService: ObservableObject {
             ))
         }
         try modelContext.save()
+    }
+
+    private func makeICloudAsset(data: Data, fileName: String) throws -> (asset: CKAsset, fileURL: URL) {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "kryptos-icloud-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fileURL = directory.appending(path: fileName)
+        try data.write(to: fileURL, options: .atomic)
+        return (CKAsset(fileURL: fileURL), fileURL)
+    }
+
+    private func iCloudVaultData(from record: CKRecord) throws -> Data? {
+        if let asset = record[iCloudVaultAssetField] as? CKAsset, let fileURL = asset.fileURL {
+            return try Data(contentsOf: fileURL)
+        }
+        if let data = record[iCloudVaultField] as? Data {
+            return data
+        }
+        return nil
     }
 
     private struct DriveFile: Decodable {
