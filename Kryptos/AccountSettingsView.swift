@@ -294,8 +294,7 @@ struct AccountSettingsView: View {
     private func runDriveBackup(toMyDrive: Bool) async {
         let scope = toMyDrive ? GoogleAuthService.driveFileScope : GoogleAuthService.appDataScope
         guard let token = await auth.accessToken(requiring: scope) else { return }
-        let refresher: DriveBackupService.TokenRefresher = { [auth] in await auth.refreshAccessToken() }
-        await backup.backup(records: records, accessToken: token, toMyDrive: toMyDrive, refresh: refresher)
+        await backup.backup(records: records, accessToken: token, toMyDrive: toMyDrive, refresh: driveTokenRefresher(scope: scope))
     }
 
     private func restoreFromDrive() async {
@@ -308,9 +307,18 @@ struct AccountSettingsView: View {
         } else {
             myDriveToken = nil
         }
-        let refresher: DriveBackupService.TokenRefresher = { [auth] in await auth.refreshAccessToken() }
+        let refresher = driveTokenRefresher(scope: billing.isPremium ? GoogleAuthService.driveFileScope : GoogleAuthService.appDataScope)
         await backup.restore(appDataToken: appDataToken, myDriveToken: myDriveToken, modelContext: modelContext, ownerId: ownerId, refresh: refresher)
         await reminders.sync(records: records)
+    }
+
+    private func driveTokenRefresher(scope: String) -> DriveBackupService.TokenRefresher {
+        { [auth] in
+            if let token = await auth.refreshAccessToken() {
+                return token
+            }
+            return await auth.signIn(scopes: [scope])?.accessToken
+        }
     }
 
     private func deleteAllData() {
