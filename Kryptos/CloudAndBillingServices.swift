@@ -96,7 +96,10 @@ final class DriveBackupService: ObservableObject {
 
     private let backupName = "kryptos-ios-vault.json"
     private let keyName = "kryptos-ios.key"
-    private let lastBackupKey = "drive.lastBackupAt"
+    private let myDriveFolderName = "KryptosBackups"
+    private let lastAppDataBackupKey = "drive.lastAppDataBackupAt"
+    private let lastMyDriveBackupKey = "drive.lastMyDriveBackupAt"
+    private let legacyDriveBackupKey = "drive.lastBackupAt"
     private let lastICloudBackupKey = "icloud.lastBackupAt"
     private let iCloudContainerIdentifier = "iCloud.com.fmz.kryptos"
     private let iCloudRecordType = "KryptosVaultBackup"
@@ -108,13 +111,17 @@ final class DriveBackupService: ObservableObject {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    var lastBackupAt: Date? {
-        let value = UserDefaults.standard.double(forKey: lastBackupKey)
-        return value == 0 ? nil : Date(timeIntervalSince1970: value)
+    var lastAppDataBackupAt: Date? { storedDate(forKey: lastAppDataBackupKey) ?? storedDate(forKey: legacyDriveBackupKey) }
+    var lastMyDriveBackupAt: Date? { storedDate(forKey: lastMyDriveBackupKey) }
+
+    var lastDriveBackupAt: Date? {
+        [lastAppDataBackupAt, lastMyDriveBackupAt].compactMap { $0 }.max()
     }
 
-    var lastICloudBackupAt: Date? {
-        let value = UserDefaults.standard.double(forKey: lastICloudBackupKey)
+    var lastICloudBackupAt: Date? { storedDate(forKey: lastICloudBackupKey) }
+
+    private func storedDate(forKey key: String) -> Date? {
+        let value = UserDefaults.standard.double(forKey: key)
         return value == 0 ? nil : Date(timeIntervalSince1970: value)
     }
 
@@ -125,18 +132,19 @@ final class DriveBackupService: ObservableObject {
             let payload = try makeBackupData(records: records)
 
             if toMyDrive {
-                workingMessage = "Finding KryptosBackups folder..."
+                workingMessage = "Finding \(myDriveFolderName) folder..."
                 let folderId = try await getOrCreateFolder(accessToken: accessToken)
                 try await uploadOrReplace(accessToken: accessToken, name: backupName, data: payload.vault, mime: "application/json", parent: folderId, appData: false)
                 try await uploadOrReplace(accessToken: accessToken, name: keyName, data: payload.key, mime: "application/octet-stream", parent: folderId, appData: false)
+                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: lastMyDriveBackupKey)
+                feedback = "Backup to My Drive complete."
             } else {
                 workingMessage = "Uploading to private Drive AppData..."
                 try await uploadOrReplace(accessToken: accessToken, name: backupName, data: payload.vault, mime: "application/json", parent: "appDataFolder", appData: true)
                 try await uploadOrReplace(accessToken: accessToken, name: keyName, data: payload.key, mime: "application/octet-stream", parent: "appDataFolder", appData: true)
+                UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: lastAppDataBackupKey)
+                feedback = "Backup complete."
             }
-
-            UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: lastBackupKey)
-            feedback = toMyDrive ? "Backup to My Drive complete." : "Backup complete."
         } catch {
             feedback = error.localizedDescription
         }
@@ -196,27 +204,85 @@ final class DriveBackupService: ObservableObject {
         workingMessage = nil
     }
 
-    func restore(accessToken: String, modelContext: ModelContext, ownerId: String) async {
+    func restore(appDataToken: String?, myDriveToken: String?, modelContext: ModelContext, ownerId: String) async {
         workingMessage = "Looking for Drive backup..."
         feedback = nil
         do {
-            guard let backupFile = try await findFile(accessToken: accessToken, name: backupName, appData: true) else {
-                feedback = "No backup found in Drive AppData."
+            var candidates: [DriveBackupCandidate] = []
+
+            if let token = appDataToken,
+               let candidate = try await findAppDataCandidate(token: token) {
+                candidates.append(candidate)
+            }
+
+            if let token = myDriveToken,
+               let candidate = try await findMyDriveCandidate(token: token) {
+                candidates.append(candidate)
+            }
+
+            guard let chosen = candidates.max(by: { $0.payload.exportedAt < $1.payload.exportedAt }) else {
+                if appDataToken == nil && myDriveToken == nil {
+                    feedback = "Sign in with Google to restore from Drive."
+                } else {
+                    feedback = "No backup found in Google Drive."
+                }
                 workingMessage = nil
                 return
             }
-            if let keyFile = try await findFile(accessToken: accessToken, name: keyName, appData: true) {
-                let keyData = try await download(accessToken: accessToken, fileId: keyFile.id)
+
+            workingMessage = "Restoring from \(chosen.source.label)..."
+            if let keyData = chosen.keyData {
                 try VaultCrypto.shared.importKeyData(keyData)
             }
+            try restoreDecodedPayload(chosen.payload, modelContext: modelContext, ownerId: ownerId)
 
-            let data = try await download(accessToken: accessToken, fileId: backupFile.id)
-            try restorePayload(data, modelContext: modelContext, ownerId: ownerId)
-            feedback = "Restore complete."
+            let extra = candidates.count > 1 ? " (newer of \(candidates.count) found)" : ""
+            feedback = "Restore complete from \(chosen.source.label)\(extra)."
         } catch {
             feedback = error.localizedDescription
         }
         workingMessage = nil
+    }
+
+    private struct DriveBackupCandidate {
+        let source: DriveBackupSource
+        let payload: BackupPayload
+        let keyData: Data?
+    }
+
+    private enum DriveBackupSource {
+        case appData
+        case myDrive
+
+        var label: String {
+            switch self {
+            case .appData: "Drive (hidden)"
+            case .myDrive: "My Drive"
+            }
+        }
+    }
+
+    private func findAppDataCandidate(token: String) async throws -> DriveBackupCandidate? {
+        guard let backupFile = try await findFile(accessToken: token, name: backupName, appData: true) else { return nil }
+        let data = try await download(accessToken: token, fileId: backupFile.id)
+        let payload = try decoder.decode(BackupPayload.self, from: data)
+        var keyData: Data?
+        if let keyFile = try await findFile(accessToken: token, name: keyName, appData: true) {
+            keyData = try await download(accessToken: token, fileId: keyFile.id)
+        }
+        return DriveBackupCandidate(source: .appData, payload: payload, keyData: keyData)
+    }
+
+    private func findMyDriveCandidate(token: String) async throws -> DriveBackupCandidate? {
+        guard let folder = try await findFile(accessToken: token, name: myDriveFolderName, appData: false) else { return nil }
+        guard let backupFile = try await findFile(accessToken: token, name: backupName, parent: folder.id, appData: false) else { return nil }
+        let data = try await download(accessToken: token, fileId: backupFile.id)
+        let payload = try decoder.decode(BackupPayload.self, from: data)
+        var keyData: Data?
+        if let keyFile = try await findFile(accessToken: token, name: keyName, parent: folder.id, appData: false) {
+            keyData = try await download(accessToken: token, fileId: keyFile.id)
+        }
+        return DriveBackupCandidate(source: .myDrive, payload: payload, keyData: keyData)
     }
 
     private func makeBackupData(records: [VaultEntryRecord]) throws -> (vault: Data, key: Data) {
@@ -242,6 +308,10 @@ final class DriveBackupService: ObservableObject {
 
     private func restorePayload(_ data: Data, modelContext: ModelContext, ownerId: String) throws {
         let payload = try decoder.decode(BackupPayload.self, from: data)
+        try restoreDecodedPayload(payload, modelContext: modelContext, ownerId: ownerId)
+    }
+
+    private func restoreDecodedPayload(_ payload: BackupPayload, modelContext: ModelContext, ownerId: String) throws {
         let existing = try modelContext.fetch(FetchDescriptor<VaultEntryRecord>())
         existing.forEach { modelContext.delete($0) }
         payload.entries.forEach {

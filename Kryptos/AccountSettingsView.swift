@@ -136,8 +136,8 @@ struct AccountSettingsView: View {
     }
 
     private var backupSection: some View {
-        Section("Cloud Backup") {
-            Text("Backs up the encrypted vault package to your private iCloud database or Google Drive AppData.")
+        Section {
+            Text(backupDescription)
                 .foregroundStyle(.secondary)
 
             Text(backup.lastICloudBackupAt.map { "Last iCloud backup: \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "No iCloud backup yet.")
@@ -157,14 +157,14 @@ struct AccountSettingsView: View {
             }
             .disabled(auth.account == nil || backup.workingMessage != nil)
 
-            Text(backup.lastBackupAt.map { "Last Google Drive backup: \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "No Google Drive backup yet.")
+            Text(driveBackupTimestampLabel)
                 .font(.footnote)
                 .padding(.top, 8)
 
             Button {
-                Task { await runDriveBackup(toMyDrive: false) }
+                Task { await runDriveBackup(toMyDrive: billing.isPremium) }
             } label: {
-                Label("Back up to Google Drive", systemImage: "externaldrive.badge.icloud")
+                Label(billing.isPremium ? "Back up to My Drive (Pro)" : "Back up to Google Drive", systemImage: "externaldrive.badge.icloud")
             }
             .disabled(auth.account == nil || backup.workingMessage != nil)
 
@@ -174,15 +174,6 @@ struct AccountSettingsView: View {
                 Label("Restore from Google Drive", systemImage: "arrow.clockwise.icloud")
             }
             .disabled(auth.account == nil || backup.workingMessage != nil)
-
-            if billing.isPremium {
-                Button {
-                    Task { await runDriveBackup(toMyDrive: true) }
-                } label: {
-                    Label("Back up to My Drive (Pro)", systemImage: "externaldrive.badge.icloud")
-                }
-                .disabled(auth.account == nil || backup.workingMessage != nil)
-            }
 
             if let working = backup.workingMessage {
                 Label(working, systemImage: "hourglass")
@@ -195,7 +186,41 @@ struct AccountSettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+        } header: {
+            Text("Cloud Backup")
+        } footer: {
+            if billing.isPremium {
+                Text("Restore scans both your visible \"KryptosBackups\" folder and any older hidden backup, and uses whichever is newest.")
+            } else {
+                Text("Backups go to a hidden Google Drive folder only your device can see. Upgrade to Pro to back up to a visible \"KryptosBackups\" folder you can copy or move yourself.")
+            }
         }
+    }
+
+    private var backupDescription: String {
+        billing.isPremium
+            ? "Backs up the encrypted vault package to your private iCloud database or a visible \"KryptosBackups\" folder in your Google Drive."
+            : "Backs up the encrypted vault package to your private iCloud database or a hidden Google Drive folder."
+    }
+
+    private var driveBackupTimestampLabel: String {
+        if billing.isPremium {
+            if let myDrive = backup.lastMyDriveBackupAt {
+                var line = "Last My Drive backup: \(myDrive.formatted(date: .abbreviated, time: .shortened))"
+                if let appData = backup.lastAppDataBackupAt, appData > myDrive {
+                    line += " · Newer hidden backup: \(appData.formatted(date: .abbreviated, time: .shortened))"
+                }
+                return line
+            }
+            if let appData = backup.lastAppDataBackupAt {
+                return "Last Google Drive backup (hidden): \(appData.formatted(date: .abbreviated, time: .shortened))"
+            }
+            return "No Google Drive backup yet."
+        }
+        if let appData = backup.lastAppDataBackupAt {
+            return "Last Google Drive backup: \(appData.formatted(date: .abbreviated, time: .shortened))"
+        }
+        return "No Google Drive backup yet."
     }
 
     private var remindersSection: some View {
@@ -273,8 +298,16 @@ struct AccountSettingsView: View {
     }
 
     private func restoreFromDrive() async {
-        guard let token = await auth.accessToken(requiring: GoogleAuthService.appDataScope) else { return }
-        await backup.restore(accessToken: token, modelContext: modelContext, ownerId: ownerId)
+        let appDataToken = await auth.accessToken(requiring: GoogleAuthService.appDataScope)
+        let myDriveToken: String?
+        if billing.isPremium {
+            myDriveToken = await auth.accessToken(requiring: GoogleAuthService.driveFileScope)
+        } else if auth.account?.grantedScopes.contains(GoogleAuthService.driveFileScope) == true {
+            myDriveToken = auth.account?.accessToken
+        } else {
+            myDriveToken = nil
+        }
+        await backup.restore(appDataToken: appDataToken, myDriveToken: myDriveToken, modelContext: modelContext, ownerId: ownerId)
         await reminders.sync(records: records)
     }
 
