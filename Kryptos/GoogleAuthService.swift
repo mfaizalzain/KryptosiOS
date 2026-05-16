@@ -156,6 +156,37 @@ final class GoogleAuthService: NSObject, ObservableObject {
         return await signIn(scopes: [scope])?.accessToken
     }
 
+    @discardableResult
+    func refreshAccessToken() async -> String? {
+        guard let current = account, current.provider == .google, let refreshToken = current.refreshToken else {
+            return nil
+        }
+        do {
+            let token = try await exchangeRefreshToken(refreshToken)
+            let mergedScopes: Set<String>
+            if let scope = token.scope {
+                mergedScopes = Set(scope.split(separator: " ").map(String.init)).union(current.grantedScopes)
+            } else {
+                mergedScopes = current.grantedScopes
+            }
+            let refreshed = GoogleAccount(
+                id: current.id,
+                email: current.email,
+                displayName: current.displayName,
+                photoURL: current.photoURL,
+                accessToken: token.accessToken,
+                refreshToken: token.refreshToken ?? current.refreshToken,
+                grantedScopes: mergedScopes,
+                provider: .google
+            )
+            try persist(refreshed)
+            account = refreshed
+            return token.accessToken
+        } catch {
+            return nil
+        }
+    }
+
     func signInWithApple() async -> GoogleAccount? {
         isWorking = true
         errorMessage = nil
@@ -245,6 +276,22 @@ final class GoogleAuthService: NSObject, ObservableObject {
             URLQueryItem(name: "client_id", value: Self.clientID),
             URLQueryItem(name: "redirect_uri", value: Self.redirectURI),
             URLQueryItem(name: "grant_type", value: "authorization_code")
+        ]
+        request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response, data: data)
+        return try decoder.decode(TokenResponse.self, from: data)
+    }
+
+    private func exchangeRefreshToken(_ refreshToken: String) async throws -> TokenResponse {
+        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "refresh_token", value: refreshToken),
+            URLQueryItem(name: "client_id", value: Self.clientID),
+            URLQueryItem(name: "grant_type", value: "refresh_token")
         ]
         request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         let (data, response) = try await URLSession.shared.data(for: request)
