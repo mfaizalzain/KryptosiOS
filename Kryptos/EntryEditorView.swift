@@ -8,6 +8,7 @@ struct EntryEditorView: View {
 
     let record: VaultEntryRecord?
     let ownerId: String
+    let initialQRPayload: String?
 
     @State private var title: String
     @State private var template: VaultTemplate
@@ -16,10 +17,12 @@ struct EntryEditorView: View {
     @State private var activeScan: ScanMode?
     @State private var duplicate: VaultEntryRecord?
     @State private var saveError: String?
+    @State private var didApplyInitialQR = false
 
-    init(record: VaultEntryRecord?, ownerId: String) {
+    init(record: VaultEntryRecord?, ownerId: String, initialQRPayload: String? = nil) {
         self.record = record
         self.ownerId = ownerId
+        self.initialQRPayload = initialQRPayload
         let draft = VaultEntryDraft(record: record, crypto: .shared)
         _title = State(initialValue: draft.title)
         _template = State(initialValue: draft.template)
@@ -112,6 +115,12 @@ struct EntryEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                if !didApplyInitialQR, let payload = initialQRPayload {
+                    didApplyInitialQR = true
+                    applyQR(payload)
                 }
             }
             .sheet(item: $activeScan) { mode in

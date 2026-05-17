@@ -10,6 +10,8 @@ struct VaultListView: View {
     @State private var searchText = ""
     @State private var showingEditor = false
     @State private var showingSettings = false
+    @State private var showingQRScanner = false
+    @State private var importedQRPayload: String?
 
     private var ownerId: String { auth.account?.id ?? "local" }
     private var records: [VaultEntryRecord] { allRecords.filter { $0.ownerId == ownerId } }
@@ -87,11 +89,24 @@ struct VaultListView: View {
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Spacer()
-                    Button {
-                        if reachedLimit {
-                            showingSettings = true
-                        } else {
-                            showingEditor = true
+                    Menu {
+                        Button {
+                            if reachedLimit {
+                                showingSettings = true
+                            } else {
+                                showingEditor = true
+                            }
+                        } label: {
+                            Label(reachedLimit ? "Unlock Pro to add entry" : "New entry", systemImage: reachedLimit ? "crown.fill" : "plus")
+                        }
+                        Button {
+                            if reachedLimit {
+                                showingSettings = true
+                            } else {
+                                showingQRScanner = true
+                            }
+                        } label: {
+                            Label("Scan QR to import", systemImage: "qrcode.viewfinder")
                         }
                     } label: {
                         Label(reachedLimit ? "Unlock Pro" : "Add Entry", systemImage: reachedLimit ? "crown.fill" : "plus")
@@ -104,7 +119,6 @@ struct VaultListView: View {
                             )
                             .shadow(color: BrandPalette.primary.opacity(0.35), radius: 14, y: 6)
                     }
-                    .buttonStyle(.plain)
                     .padding(.trailing, 20)
                     .padding(.bottom, 14)
                 }
@@ -122,6 +136,24 @@ struct VaultListView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 AccountSettingsView()
+            }
+            .sheet(isPresented: $showingQRScanner) {
+                NavigationStack {
+                    QRScannerView { value in
+                        showingQRScanner = false
+                        importedQRPayload = value
+                    }
+                    .navigationTitle("Scan QR")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Cancel") { showingQRScanner = false }
+                        }
+                    }
+                }
+            }
+            .sheet(item: Binding(get: { importedQRPayload.map { ImportedPayload(value: $0) } }, set: { if $0 == nil { importedQRPayload = nil } })) { payload in
+                EntryEditorView(record: nil, ownerId: ownerId, initialQRPayload: payload.value)
             }
     }
 
@@ -165,6 +197,11 @@ private struct CategoryHeader: View {
                 .background(.quaternary.opacity(0.5), in: Capsule())
         }
     }
+}
+
+private struct ImportedPayload: Identifiable {
+    let value: String
+    var id: String { value }
 }
 
 private struct CategoryCarousel: View {
