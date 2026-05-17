@@ -102,9 +102,12 @@ struct EntryDetailView: View {
                 Button {
                     qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
                 } label: {
-                    Label("Share with another device", systemImage: "square.and.arrow.up")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 50)
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share with another device")
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
