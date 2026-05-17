@@ -118,6 +118,28 @@ struct EntryDetailView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .listRowBackground(Color.clear)
+
+                if record.template == .qrCode, let rawValue = originalQRValue, !rawValue.isEmpty {
+                    Button {
+                        qrPayload = QRPayload(value: rawValue, title: record.title)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "qrcode")
+                            Text("Show original QR")
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                    .listRowBackground(Color.clear)
+
+                    Text("The original QR — scannable by any QR reader (Wi-Fi, URL, vCard, etc.).")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
             }
 
             Section {
@@ -166,6 +188,11 @@ struct EntryDetailView: View {
         } message: {
             Text("This permanently removes \(record.title.isEmpty ? "this entry" : record.title) from your vault.")
         }
+    }
+
+    private var originalQRValue: String? {
+        fields.first { $0.name.localizedCaseInsensitiveCompare("Data") == .orderedSame }?.value
+            ?? fields.first?.value
     }
 
     private func makeQRPayload() -> String {
