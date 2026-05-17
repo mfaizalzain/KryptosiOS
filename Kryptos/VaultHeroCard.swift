@@ -156,10 +156,18 @@ struct VaultHeroCard: View {
 
     private var paymentCard: some View {
         VStack(alignment: .leading, spacing: compact ? 7 : 10) {
-            HStack {
-                Text(fields.value("Issuer").isEmpty ? title.ifEmpty("KRYPTOS CARD") : fields.value("Issuer"))
-                    .font((compact ? Font.subheadline : Font.headline).bold())
-                    .lineLimit(1)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.ifEmpty(fields.value("Issuer").ifEmpty("KRYPTOS CARD")))
+                        .font((compact ? Font.subheadline : Font.headline).bold())
+                        .lineLimit(1)
+                    if !title.isEmpty, !fields.value("Issuer").isEmpty, title != fields.value("Issuer") {
+                        Text(fields.value("Issuer"))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .lineLimit(1)
+                    }
+                }
                 Spacer()
                 Image(systemName: "creditcard.chip")
                     .font(compact ? .body : .title2)
@@ -205,6 +213,7 @@ struct VaultHeroCard: View {
                 Text(fields.value("Service").ifEmpty(title.ifEmpty("API Key")))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
+                Spacer(minLength: 0)
             }
             Spacer()
             Text(maskSecret(fields.firstValue("Key", "Secret")))
@@ -212,6 +221,7 @@ struct VaultHeroCard: View {
                 .lineLimit(compact ? 1 : 2)
             LabelValue(label: "Environment", value: fields.value("Environment"))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var noteCard: some View {
@@ -224,6 +234,7 @@ struct VaultHeroCard: View {
                 .lineLimit(compact ? 3 : 8)
             Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func iconPlaceholder(symbol: String) -> some View {
