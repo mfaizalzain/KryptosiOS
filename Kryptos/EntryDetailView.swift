@@ -99,6 +99,25 @@ struct EntryDetailView: View {
             }
 
             Section {
+                Button {
+                    qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
+                } label: {
+                    Label("Share with another device", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                .listRowBackground(Color.clear)
+
+                Text("Scan the QR from another Kryptos app (iOS or Android) to import this entry instantly. Works fully offline.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            }
+
+            Section {
                 Text("Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -111,8 +130,9 @@ struct EntryDetailView: View {
                 Button {
                     qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
                 } label: {
-                    Image(systemName: "qrcode")
+                    Image(systemName: "square.and.arrow.up")
                 }
+                .accessibilityLabel("Share entry")
                 Button {
                     showingEditor = true
                 } label: {
@@ -229,8 +249,14 @@ private struct QRShareView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 if let image = QRCode.makeImage(from: payload.value) {
+                    Text("Scan from another Kryptos app (iOS or Android) to import this entry. Works fully offline — nothing leaves your device.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
                     Image(uiImage: image)
                         .interpolation(.none)
                         .resizable()
