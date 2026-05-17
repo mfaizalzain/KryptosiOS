@@ -169,7 +169,7 @@ struct VaultHeroCard: View {
                     }
                 }
                 Spacer()
-                Image(systemName: "creditcard.chip")
+                Image(systemName: "creditcard.fill")
                     .font(compact ? .body : .title2)
             }
 
