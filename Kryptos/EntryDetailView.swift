@@ -169,9 +169,6 @@ struct EntryDetailView: View {
     }
 
     private func makeQRPayload() -> String {
-        if record.template == .qrCode {
-            return fields.first { $0.name.localizedCaseInsensitiveCompare("Data") == .orderedSame }?.value ?? fields.first?.value ?? ""
-        }
         let fieldDict = Dictionary(uniqueKeysWithValues: fields.map { ($0.name, $0.value) })
         let envelope: [String: Any] = [
             "kryptos": 1,
