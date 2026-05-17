@@ -276,8 +276,7 @@ struct EntryEditorView: View {
                 }
                 if
                     let incomingTitle = object["title"] as? String,
-                    !incomingTitle.isEmpty,
-                    title.isEmpty
+                    !incomingTitle.isEmpty
                 {
                     title = incomingTitle
                 }
