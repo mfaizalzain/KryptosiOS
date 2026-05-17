@@ -49,26 +49,24 @@ struct EntryEditorView: View {
                     }
                 }
 
-                if template.supportsCameraScan || template == .qrCode {
-                    Section {
-                        if template.supportsCameraScan {
-                            Button {
-                                activeScan = .document
-                            } label: {
-                                Label("Scan document", systemImage: "doc.viewfinder")
-                            }
-                        }
-
+                Section {
+                    if template.supportsCameraScan {
                         Button {
-                            activeScan = .qr
+                            activeScan = .document
                         } label: {
-                            Label(template == .qrCode ? "Scan QR to import" : "Scan QR", systemImage: "qrcode.viewfinder")
+                            Label("Scan document", systemImage: "doc.viewfinder")
                         }
-                    } header: {
-                        Text("Fill from scan")
-                    } footer: {
-                        Text(scanFooter)
                     }
+
+                    Button {
+                        activeScan = .qr
+                    } label: {
+                        Label(template == .qrCode ? "Scan QR to import" : "Scan QR", systemImage: "qrcode.viewfinder")
+                    }
+                } header: {
+                    Text("Fill from scan")
+                } footer: {
+                    Text(scanFooter)
                 }
 
                 Section {
@@ -171,6 +169,8 @@ struct EntryEditorView: View {
             "Camera scan extracts visible card text. You can edit every value before saving."
         case .qrCode:
             "Point the camera at any QR code to import its contents. Kryptos can regenerate the same QR from this entry."
+        case .apiKey, .note:
+            "Scan a QR shared from another Kryptos device to import this entry."
         default:
             "Camera and QR scans can prefill fields. You can edit every value before saving."
         }
