@@ -69,6 +69,19 @@ struct VaultListView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        if reachedLimit {
+                            showingSettings = true
+                        } else {
+                            showingQRScanner = true
+                        }
+                    } label: {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .accessibilityLabel("Scan QR to import")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         showingSettings = true
                     } label: {
                         if let photoURL = auth.account?.photoURL {
@@ -89,24 +102,11 @@ struct VaultListView: View {
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     Spacer()
-                    Menu {
-                        Button {
-                            if reachedLimit {
-                                showingSettings = true
-                            } else {
-                                showingEditor = true
-                            }
-                        } label: {
-                            Label(reachedLimit ? "Unlock Pro to add entry" : "New entry", systemImage: reachedLimit ? "crown.fill" : "plus")
-                        }
-                        Button {
-                            if reachedLimit {
-                                showingSettings = true
-                            } else {
-                                showingQRScanner = true
-                            }
-                        } label: {
-                            Label("Scan QR to import", systemImage: "qrcode.viewfinder")
+                    Button {
+                        if reachedLimit {
+                            showingSettings = true
+                        } else {
+                            showingEditor = true
                         }
                     } label: {
                         Label(reachedLimit ? "Unlock Pro" : "Add Entry", systemImage: reachedLimit ? "crown.fill" : "plus")
@@ -119,6 +119,7 @@ struct VaultListView: View {
                             )
                             .shadow(color: BrandPalette.primary.opacity(0.35), radius: 14, y: 6)
                     }
+                    .buttonStyle(.plain)
                     .padding(.trailing, 20)
                     .padding(.bottom, 14)
                 }
