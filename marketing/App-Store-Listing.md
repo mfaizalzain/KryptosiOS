@@ -23,9 +23,9 @@ Alternates:
 ## Promotional Text (max 170, editable without resubmission)
 
 ```
-Your passports, IDs, cards, and notes - encrypted on-device with AES-256 via Apple CryptoKit. No servers. No subscriptions. Just $1.99 to go Pro.
+Your passports, IDs, cards, and notes - encrypted on-device with AES-256. Share entries to any iPhone or Android Kryptos app fully offline. $1.99 one-time Pro.
 ```
-*(159)*
+*(168)*
 
 ## Description (max 4000)
 
@@ -40,6 +40,9 @@ Snap a passport, a driver's licence, an ID card, or a payment card. On-device Vi
 
 QR CODE CAPTURE AND REGENERATION
 Point the camera at any QR code to import its contents. Kryptos can regenerate the same QR from the saved entry whenever you need it.
+
+CROSS-DEVICE SHARING - FULLY OFFLINE
+Share any entry with someone else's Kryptos app by showing a QR code on screen. They scan it from their device (iPhone or Android) and the entry imports instantly with the right category, title, and fields. Nothing touches the network - sharing happens completely offline, screen-to-screen.
 
 BEAUTIFUL HERO CARDS
 Each document type gets its own purpose-built card UI - passports, driver's licences, credit cards, IDs, notes, API keys, tax numbers - with a scanned attachment rendered as the card itself.
@@ -88,7 +91,7 @@ Terms and FAQ: https://kryptos.faizalmzain.com/faq
 ## Keywords (max 100 chars total, comma-separated)
 
 ```
-password,vault,id card,passport,wallet,scanner,encrypt,secure,2fa,nfc,document,note,api,backup
+password,vault,id card,passport,wallet,scanner,encrypt,secure,2fa,document,note,api,backup,share
 ```
 *(99)*
 
@@ -103,6 +106,7 @@ Welcome to Kryptos!
 - Zero-knowledge vault encrypted with AES-256-GCM via Apple CryptoKit
 - On-device OCR scanning for passports, ID cards, driver's licences, and payment cards
 - QR code capture and regeneration
+- Cross-device sharing: send any entry to another Kryptos app (iPhone or Android) fully offline, screen-to-screen
 - Face ID and Touch ID unlock backed by the Secure Enclave
 - Local expiry reminders (30, 7, and 1 day before)
 - Encrypted backup to iCloud private database or your own Google Drive
