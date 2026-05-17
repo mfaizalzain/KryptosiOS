@@ -24,7 +24,6 @@ struct LockView: View {
     @EnvironmentObject private var auth: GoogleAuthService
     @EnvironmentObject private var gate: BiometricGate
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showingSettings = false
 
     private var buttonBackground: Color { colorScheme == .dark ? .white : .black }
     private var buttonForeground: Color { colorScheme == .dark ? .black : .white }
@@ -111,27 +110,6 @@ struct LockView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            showingSettings = true
-                        } label: {
-                            Label("Restore", systemImage: "arrow.clockwise.icloud")
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-
-                        Button {
-                            auth.signOut()
-                            gate.lock()
-                        } label: {
-                            Label("Switch", systemImage: "arrow.left.arrow.right")
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                    }
                 }
 
                 if let message = auth.errorMessage ?? gate.message {
@@ -151,9 +129,6 @@ struct LockView: View {
             }
         }
         .padding(28)
-        .sheet(isPresented: $showingSettings) {
-            AccountSettingsView()
-        }
         .onAppear {
             if auth.account != nil && !gate.unlocked {
                 gate.unlock()
