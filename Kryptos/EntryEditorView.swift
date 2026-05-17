@@ -269,8 +269,7 @@ struct EntryEditorView: View {
                 if
                     let templateRaw = object["template"] as? String,
                     let incoming = VaultTemplate(rawValue: templateRaw),
-                    incoming != template,
-                    fields.allSatisfy({ $0.value.isEmpty })
+                    incoming != template
                 {
                     template = incoming
                     fields = incoming.defaultFields.map { VaultField(name: $0, value: "") }
