@@ -262,8 +262,33 @@ struct EntryEditorView: View {
             let data = value.data(using: .utf8),
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         {
-            object.keys.sorted().forEach { key in
-                mergeField(name: key, value: "\(object[key] ?? "")")
+            if
+                object["kryptos"] != nil,
+                let fieldDict = object["fields"] as? [String: Any]
+            {
+                if
+                    let templateRaw = object["template"] as? String,
+                    let incoming = VaultTemplate(rawValue: templateRaw),
+                    incoming != template,
+                    fields.allSatisfy({ $0.value.isEmpty })
+                {
+                    template = incoming
+                    fields = incoming.defaultFields.map { VaultField(name: $0, value: "") }
+                }
+                if
+                    let incomingTitle = object["title"] as? String,
+                    !incomingTitle.isEmpty,
+                    title.isEmpty
+                {
+                    title = incomingTitle
+                }
+                fieldDict.keys.sorted().forEach { key in
+                    mergeField(name: key, value: "\(fieldDict[key] ?? "")")
+                }
+            } else {
+                object.keys.sorted().forEach { key in
+                    mergeField(name: key, value: "\(object[key] ?? "")")
+                }
             }
         } else {
             mergeField(name: template == .qrCode ? "Data" : "Scanned text", value: value)

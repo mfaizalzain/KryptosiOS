@@ -169,8 +169,14 @@ struct EntryDetailView: View {
         if record.template == .qrCode {
             return fields.first { $0.name.localizedCaseInsensitiveCompare("Data") == .orderedSame }?.value ?? fields.first?.value ?? ""
         }
-        let object = Dictionary(uniqueKeysWithValues: fields.map { ($0.name, $0.value) })
-        let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
+        let fieldDict = Dictionary(uniqueKeysWithValues: fields.map { ($0.name, $0.value) })
+        let envelope: [String: Any] = [
+            "kryptos": 1,
+            "template": record.template.rawValue,
+            "title": record.title,
+            "fields": fieldDict
+        ]
+        let data = (try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])) ?? Data()
         return String(data: data, encoding: .utf8) ?? ""
     }
 
