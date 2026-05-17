@@ -23,7 +23,11 @@ struct RootView: View {
 struct LockView: View {
     @EnvironmentObject private var auth: GoogleAuthService
     @EnvironmentObject private var gate: BiometricGate
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
+
+    private var buttonBackground: Color { colorScheme == .dark ? .white : .black }
+    private var buttonForeground: Color { colorScheme == .dark ? .black : .white }
 
     var body: some View {
         VStack(spacing: 28) {
@@ -66,22 +70,37 @@ struct LockView: View {
                     Button {
                         Task { _ = await auth.signInWithApple() }
                     } label: {
-                        Label(auth.isWorking ? "Signing in..." : "Sign in with Apple", systemImage: "apple.logo")
-                            .frame(maxWidth: .infinity, minHeight: 54)
+                        HStack(spacing: 10) {
+                            Image(systemName: "apple.logo")
+                                .font(.title3)
+                            Text(auth.isWorking ? "Signing in..." : "Sign in with Apple")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                        .frame(maxWidth: .infinity, minHeight: 54)
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
-                    .tint(.black)
+                    .tint(Color.primary)
                     .disabled(auth.isWorking)
 
                     Button {
                         Task { _ = await auth.signIn() }
                     } label: {
-                        Label(auth.isWorking ? "Signing in..." : "Sign in with Google", systemImage: "lock.shield")
-                            .frame(maxWidth: .infinity, minHeight: 54)
+                        HStack(spacing: 10) {
+                            Image("GoogleLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                            Text(auth.isWorking ? "Signing in..." : "Sign in with Google")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                        .frame(maxWidth: .infinity, minHeight: 54)
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
+                    .tint(Color.primary)
                     .disabled(auth.isWorking)
                 } else {
                     Button {
@@ -172,6 +191,57 @@ private struct AccountBadge: View {
                         .lineLimit(1)
                 }
             }
+        }
+    }
+}
+
+private struct GoogleGLogo: View {
+    private let blue = Color(red: 0.259, green: 0.522, blue: 0.957)
+    private let red = Color(red: 0.918, green: 0.263, blue: 0.208)
+    private let yellow = Color(red: 0.984, green: 0.737, blue: 0.020)
+    private let green = Color(red: 0.204, green: 0.659, blue: 0.325)
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            let lineWidth = size * 0.22
+            let radius = (size - lineWidth) / 2
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+
+            ZStack {
+                // Blue: right side, above the bar
+                arc(center: center, radius: radius, start: -20, end: -110)
+                    .stroke(blue, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+                // Red: top going to left
+                arc(center: center, radius: radius, start: -110, end: -200)
+                    .stroke(red, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+                // Yellow: left going to bottom
+                arc(center: center, radius: radius, start: -200, end: -290)
+                    .stroke(yellow, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+                // Green: bottom going to right (stops below the bar)
+                arc(center: center, radius: radius, start: -290, end: -340)
+                    .stroke(green, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+
+                // Horizontal bar coming from center to the right edge (blue)
+                Rectangle()
+                    .fill(blue)
+                    .frame(width: size * 0.38, height: lineWidth)
+                    .offset(x: size * 0.20, y: 0)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    private func arc(center: CGPoint, radius: CGFloat, start: Double, end: Double) -> Path {
+        Path { path in
+            path.addArc(
+                center: center,
+                radius: radius,
+                startAngle: .degrees(start),
+                endAngle: .degrees(end),
+                clockwise: true
+            )
         }
     }
 }

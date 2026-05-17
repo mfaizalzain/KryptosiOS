@@ -62,7 +62,7 @@ struct VaultHeroCard: View {
     }
 
     private var showsScannedPreview: Bool {
-        scannedImage != nil && template.usesScannedPreviewOnMainPage
+        !compact && scannedImage != nil && template.usesScannedPreviewOnMainPage
     }
 
     private var scannedImage: UIImage? {
@@ -125,7 +125,7 @@ struct VaultHeroCard: View {
         case .apiKey:
             LinearGradient(colors: [Color(red: 0.08, green: 0.10, blue: 0.16), Color(red: 0.22, green: 0.24, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .note:
-            LinearGradient(colors: [Color(red: 0.30, green: 0.22, blue: 0.14), Color(red: 0.55, green: 0.38, blue: 0.18)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.42, green: 0.18, blue: 0.10), Color(red: 0.65, green: 0.32, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .qrCode:
             LinearGradient(colors: [Color(red: 0.08, green: 0.30, blue: 0.55), Color(red: 0.10, green: 0.55, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
@@ -181,18 +181,20 @@ struct VaultHeroCard: View {
     }
 
     private var documentCard: some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 14) {
-            HStack {
-                Image(systemName: template.symbol)
-                    .font(compact ? .body : .title2)
+        HStack(spacing: compact ? 12 : 16) {
+            iconPlaceholder(symbol: template.symbol)
+                .frame(width: compact ? 58 : 92)
+
+            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
                 Text(title.ifEmpty(template.title))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
+                ForEach(fields.prefix(compact ? 2 : 5)) { field in
+                    LabelValue(label: field.name, value: field.value)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer()
-            ForEach(fields.prefix(compact ? 2 : 5)) { field in
-                LabelValue(label: field.name, value: field.value)
-            }
+            Spacer(minLength: 0)
         }
     }
 
@@ -221,6 +223,23 @@ struct VaultHeroCard: View {
                 .font(compact ? .caption : .body)
                 .lineLimit(compact ? 3 : 8)
             Spacer()
+        }
+    }
+
+    private func iconPlaceholder(symbol: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.white.opacity(0.18))
+            if let attachment, let image = UIImage(data: attachment) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                Image(systemName: symbol)
+                    .font(compact ? .title3 : .title)
+                    .foregroundStyle(.white.opacity(0.78))
+            }
         }
     }
 
