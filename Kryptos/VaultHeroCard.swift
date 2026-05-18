@@ -11,12 +11,21 @@ struct VaultHeroCard: View {
     var body: some View {
         if compact {
             card
-                .foregroundStyle(.white)
+                .foregroundStyle(foreground)
                 .frame(height: 132)
         } else {
             card
-                .foregroundStyle(.white)
+                .foregroundStyle(foreground)
                 .aspectRatio(template == .note ? 1.35 : 1.586, contentMode: .fit)
+        }
+    }
+
+    private var foreground: Color {
+        switch template {
+        case .note:
+            Color(red: 0.18, green: 0.13, blue: 0.05)
+        default:
+            .white
         }
     }
 
@@ -246,7 +255,7 @@ struct VaultHeroCard: View {
     private func iconPlaceholder(symbol: String) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.white.opacity(0.18))
+                .fill(foreground.opacity(0.18))
             if let attachment, let image = UIImage(data: attachment) {
                 Image(uiImage: image)
                     .resizable()
@@ -255,7 +264,7 @@ struct VaultHeroCard: View {
             } else {
                 Image(systemName: symbol)
                     .font(compact ? .title3 : .title)
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(foreground.opacity(0.78))
             }
         }
     }
