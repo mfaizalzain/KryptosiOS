@@ -155,8 +155,11 @@ struct VaultHeroCard: View {
     }
 
     private var paymentCard: some View {
-        VStack(alignment: .leading, spacing: compact ? 7 : 10) {
-            HStack(alignment: .top) {
+        HStack(spacing: compact ? 12 : 16) {
+            iconPlaceholder(symbol: "creditcard.fill")
+                .frame(width: compact ? 58 : 92)
+
+            VStack(alignment: .leading, spacing: compact ? 5 : 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title.ifEmpty(fields.value("Issuer").ifEmpty("KRYPTOS CARD")))
                         .font((compact ? Font.subheadline : Font.headline).bold())
@@ -168,23 +171,20 @@ struct VaultHeroCard: View {
                             .lineLimit(1)
                     }
                 }
-                Spacer()
-                Image(systemName: "creditcard.fill")
-                    .font(compact ? .body : .title2)
+
+                Text(maskCard(fields.firstValue("Number", "Card number")))
+                    .font(.system(size: compact ? 15 : 22, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                HStack {
+                    LabelValue(label: "Cardholder", value: fields.value("Cardholder"))
+                    Spacer()
+                    LabelValue(label: "Expires", value: formattedExpiry(fields.value("Expiry")))
+                }
+                Spacer(minLength: 0)
             }
-
-            Spacer()
-
-            Text(maskCard(fields.firstValue("Number", "Card number")))
-                .font(.system(size: compact ? 17 : 24, weight: .semibold, design: .monospaced))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            HStack {
-                LabelValue(label: "Cardholder", value: fields.value("Cardholder"))
-                Spacer()
-                LabelValue(label: "Expires", value: formattedExpiry(fields.value("Expiry")))
-            }
+            Spacer(minLength: 0)
         }
     }
 
