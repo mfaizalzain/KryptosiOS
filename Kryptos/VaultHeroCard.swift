@@ -125,7 +125,7 @@ struct VaultHeroCard: View {
         case .apiKey:
             LinearGradient(colors: [Color(red: 0.08, green: 0.10, blue: 0.16), Color(red: 0.22, green: 0.24, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .note:
-            LinearGradient(colors: [Color(red: 0.42, green: 0.18, blue: 0.10), Color(red: 0.65, green: 0.32, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Color(red: 0.92, green: 0.74, blue: 0.18), Color(red: 0.98, green: 0.85, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .qrCode:
             LinearGradient(colors: [Color(red: 0.08, green: 0.30, blue: 0.55), Color(red: 0.10, green: 0.55, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
