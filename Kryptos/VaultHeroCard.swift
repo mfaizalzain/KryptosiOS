@@ -207,34 +207,40 @@ struct VaultHeroCard: View {
     }
 
     private var apiKeyCard: some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 12) {
-            HStack {
-                Image(systemName: "key.fill")
+        HStack(spacing: compact ? 12 : 16) {
+            iconPlaceholder(symbol: "key.fill")
+                .frame(width: compact ? 58 : 92)
+
+            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
                 Text(fields.value("Service").ifEmpty(title.ifEmpty("API Key")))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
+                Text(maskSecret(fields.firstValue("Key", "Secret")))
+                    .font(.system(compact ? .subheadline : .headline, design: .monospaced))
+                    .lineLimit(compact ? 1 : 2)
+                LabelValue(label: "Environment", value: fields.value("Environment"))
                 Spacer(minLength: 0)
             }
-            Spacer()
-            Text(maskSecret(fields.firstValue("Key", "Secret")))
-                .font(.system(compact ? .subheadline : .headline, design: .monospaced))
-                .lineLimit(compact ? 1 : 2)
-            LabelValue(label: "Environment", value: fields.value("Environment"))
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var noteCard: some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 12) {
-            Text(title.ifEmpty("Secure Note"))
-                .font((compact ? Font.subheadline : Font.title3).bold())
-                .lineLimit(1)
-            Text(fields.value("Content").ifEmpty("No content"))
-                .font(compact ? .caption : .body)
-                .lineLimit(compact ? 3 : 8)
-            Spacer()
+        HStack(spacing: compact ? 12 : 16) {
+            iconPlaceholder(symbol: "note.text")
+                .frame(width: compact ? 58 : 92)
+
+            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
+                Text(title.ifEmpty("Secure Note"))
+                    .font((compact ? Font.subheadline : Font.title3).bold())
+                    .lineLimit(1)
+                Text(fields.value("Content").ifEmpty("No content"))
+                    .font(compact ? .caption : .body)
+                    .lineLimit(compact ? 3 : 8)
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func iconPlaceholder(symbol: String) -> some View {
