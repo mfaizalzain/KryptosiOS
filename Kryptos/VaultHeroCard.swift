@@ -259,14 +259,15 @@ struct VaultHeroCard: View {
             if let attachment, let image = UIImage(data: attachment) {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .scaledToFit()
+                    .padding(4)
             } else {
                 Image(systemName: symbol)
                     .font(compact ? .title3 : .title)
                     .foregroundStyle(foreground.opacity(0.78))
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var qrCard: some View {
@@ -297,20 +298,7 @@ struct VaultHeroCard: View {
     }
 
     private var photoSlot: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.white.opacity(0.18))
-            if let attachment, let image = UIImage(data: attachment) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            } else {
-                Image(systemName: "person.crop.rectangle")
-                    .font(compact ? .title3 : .title)
-                    .foregroundStyle(.white.opacity(0.78))
-            }
-        }
+        iconPlaceholder(symbol: "person.crop.rectangle")
     }
 
     private func maskCard(_ number: String) -> String {
