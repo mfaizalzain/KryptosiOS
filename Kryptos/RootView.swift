@@ -25,110 +25,149 @@ struct LockView: View {
     @EnvironmentObject private var gate: BiometricGate
     @Environment(\.colorScheme) private var colorScheme
 
-    private var buttonBackground: Color { colorScheme == .dark ? .white : .black }
-    private var buttonForeground: Color { colorScheme == .dark ? .black : .white }
-
     var body: some View {
-        VStack(spacing: 28) {
-            Spacer()
+        ZStack {
+            // Elegant premium background gradient
+            LinearGradient(
+                colors: [
+                    Color(red: 10/255, green: 17/255, blue: 40/255),
+                    Color(red: 25/255, green: 34/255, blue: 64/255)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // Ambient glowing light pattern
+            RadialGradient(
+                colors: [BrandPalette.primary.opacity(0.20), .clear],
+                center: .topLeading,
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 28) {
+                Spacer()
 
-            VStack(spacing: 18) {
-                Image("BrandMark")
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 116, height: 116)
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    .shadow(color: BrandPalette.primary.opacity(0.35), radius: 22, y: 12)
+                VStack(spacing: 18) {
+                    Image("BrandMark")
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 116, height: 116)
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .shadow(color: BrandPalette.primary.opacity(0.45), radius: 24, y: 12)
 
-                VStack(spacing: 6) {
-                    Text("Kryptos")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                    Text("Your private vault.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
+                        Text("Kryptos")
+                            .font(.system(size: 38, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Your private secure vault.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            if let account = auth.account {
-                AccountBadge(account: account)
-            } else {
-                Text("Securely back up your data with encrypted cloud storage. Your data never leaves your device unencrypted.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
+                // Dark glassmorphic card for credential state
+                VStack {
+                    if let account = auth.account {
+                        AccountBadge(account: account)
+                    } else {
+                        Text("Securely back up your data with encrypted cloud storage. Your data never leaves your device unencrypted.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.78))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                    }
+                }
+                .padding(20)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.15), radius: 12, y: 6)
+                .padding(.horizontal)
 
-            Spacer()
+                Spacer()
 
-            VStack(spacing: 12) {
-                if auth.account == nil {
-                    Button {
-                        Task { _ = await auth.signInWithApple() }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "apple.logo")
-                                .font(.title3)
-                            Text(auth.isWorking ? "Signing in..." : "Sign in with Apple")
-                                .font(.headline)
+                VStack(spacing: 14) {
+                    if auth.account == nil {
+                        Button {
+                            Task { _ = await auth.signInWithApple() }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "apple.logo")
+                                    .font(.title3)
+                                Text(auth.isWorking ? "Signing in..." : "Sign in with Apple")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(Color.white)
+                            .clipShape(Capsule())
                         }
-                        .foregroundStyle(Color(uiColor: .systemBackground))
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .tint(Color.primary)
-                    .disabled(auth.isWorking)
+                        .buttonStyle(.plain)
+                        .disabled(auth.isWorking)
 
-                    Button {
-                        Task { _ = await auth.signIn() }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image("GoogleLogo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Text(auth.isWorking ? "Signing in..." : "Sign in with Google")
-                                .font(.headline)
+                        Button {
+                            Task { _ = await auth.signIn() }
+                        } label: {
+                            HStack(spacing: 12) {
+                                GoogleGLogo()
+                                    .frame(width: 18, height: 18)
+                                Text(auth.isWorking ? "Signing in..." : "Sign in with Google")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(red: 0.85, green: 0.85, blue: 0.85), lineWidth: 1)
+                            )
                         }
-                        .foregroundStyle(Color(uiColor: .systemBackground))
-                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .buttonStyle(.plain)
+                        .disabled(auth.isWorking)
+                    } else {
+                        Button {
+                            gate.unlock()
+                        } label: {
+                            Label("Unlock Vault", systemImage: "faceid")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, minHeight: 54)
+                                .background(BrandPalette.primary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .tint(Color.primary)
-                    .disabled(auth.isWorking)
-                } else {
-                    Button {
-                        gate.unlock()
-                    } label: {
-                        Label("Unlock Vault", systemImage: "faceid")
-                            .frame(maxWidth: .infinity, minHeight: 54)
+
+                    if let message = auth.errorMessage ?? gate.message {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                }
 
-                if let message = auth.errorMessage ?? gate.message {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
+                    HStack(spacing: 18) {
+                        Link("Privacy Policy", destination: URL(string: "https://kryptos.faizalmzain.com/privacy")!)
+                        Text("·").foregroundStyle(.white.opacity(0.3))
+                        Link("Terms & FAQ", destination: URL(string: "https://kryptos.faizalmzain.com/faq")!)
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .padding(.top, 6)
                 }
-
-                HStack(spacing: 18) {
-                    Link("Privacy Policy", destination: URL(string: "https://kryptos.faizalmzain.com/privacy")!)
-                    Text("·").foregroundStyle(.secondary)
-                    Link("Terms & FAQ", destination: URL(string: "https://kryptos.faizalmzain.com/faq")!)
-                }
-                .font(.footnote)
-                .padding(.top, 6)
             }
+            .padding(28)
         }
-        .padding(28)
         .onAppear {
             if auth.account != nil && !gate.unlocked {
                 gate.unlock()
@@ -147,7 +186,7 @@ private struct AccountBadge: View {
             } placeholder: {
                 Image(systemName: "person.crop.circle.fill")
                     .font(.system(size: 72))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.6))
             }
             .frame(width: 104, height: 104)
             .clipShape(Circle())
@@ -155,14 +194,15 @@ private struct AccountBadge: View {
             VStack(spacing: 3) {
                 Text(account.displayName ?? account.email ?? "Signed in")
                     .font(.title3.bold())
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text("Signed in with \(account.provider.label)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.68))
                 if let email = account.email, email != account.displayName {
                     Text(email)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.68))
                         .lineLimit(1)
                 }
             }

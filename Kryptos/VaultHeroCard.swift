@@ -256,7 +256,7 @@ struct VaultHeroCard: View {
         ZStack {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(foreground.opacity(0.18))
-            if let attachment, let image = UIImage(data: attachment) {
+            if let attachment, let image = ImageCache.shared.image(for: attachment) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -337,9 +337,34 @@ private struct LabelValue: View {
     }
 }
 
+final class ImageCache {
+    static let shared = ImageCache()
+    private let cache = NSCache<NSData, UIImage>()
+    private init() {}
+    
+    func image(for data: Data) -> UIImage? {
+        let nsData = data as NSData
+        if let cached = cache.object(forKey: nsData) {
+            return cached
+        }
+        if let image = UIImage(data: data) {
+            cache.setObject(image, forKey: nsData)
+            return image
+        }
+        return nil
+    }
+}
+
 enum QRCode {
+    private static let cache = NSCache<NSString, UIImage>()
+
     static func makeImage(from string: String) -> UIImage? {
         guard !string.isEmpty else { return nil }
+        let cacheKey = string as NSString
+        if let cached = cache.object(forKey: cacheKey) {
+            return cached
+        }
+        
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
@@ -348,7 +373,10 @@ enum QRCode {
             let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
             let cgImage = context.createCGImage(output, from: output.extent)
         else { return nil }
-        return UIImage(cgImage: cgImage)
+        
+        let image = UIImage(cgImage: cgImage)
+        cache.setObject(image, forKey: cacheKey)
+        return image
     }
 }
 

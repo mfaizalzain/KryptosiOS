@@ -77,10 +77,21 @@ final class VaultCrypto {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
+    private let lock = NSLock()
+    private var cachedKey: SymmetricKey?
+
     private var key: SymmetricKey {
         get throws {
+            lock.lock()
+            defer { lock.unlock() }
+            
+            if let cached = cachedKey {
+                return cached
+            }
             if let stored = keychain.data(for: keyName) {
-                return SymmetricKey(data: stored)
+                let decryptedKey = SymmetricKey(data: stored)
+                cachedKey = decryptedKey
+                return decryptedKey
             }
             var bytes = Data(count: 32)
             let result = bytes.withUnsafeMutableBytes {
@@ -88,7 +99,9 @@ final class VaultCrypto {
             }
             guard result == errSecSuccess else { throw KryptosSecurityError.keychainReadFailed }
             try keychain.set(bytes, for: keyName)
-            return SymmetricKey(data: bytes)
+            let newKey = SymmetricKey(data: bytes)
+            cachedKey = newKey
+            return newKey
         }
     }
 
@@ -120,10 +133,16 @@ final class VaultCrypto {
 
     func importKeyData(_ data: Data) throws {
         try keychain.set(data, for: keyName)
+        lock.lock()
+        cachedKey = SymmetricKey(data: data)
+        lock.unlock()
     }
 
     func destroyLocalKey() {
         keychain.remove(keyName)
+        lock.lock()
+        cachedKey = nil
+        lock.unlock()
     }
 }
 

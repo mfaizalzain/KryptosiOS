@@ -67,7 +67,7 @@ enum VaultTemplate: String, Codable, CaseIterable, Identifiable {
         case .passport: ["Surname", "Given names", "Passport number", "Nationality", "Date of birth", "Sex", "Expiry"]
         case .driversLicense: ["Full name", "License number", "Class", "Date of birth", "Expiry", "Country/State"]
         case .birthCertificate: ["Full name", "Date of birth", "Place of birth", "Father's name", "Mother's name", "Registration number", "Date of issue"]
-        case .paymentCard: ["Issuer", "Cardholder", "Number", "Expiry", "CVV"]
+        case .paymentCard: ["Issuer", "Cardholder", "Number", "Expiry"]
         case .bankAccount: ["Bank", "Account holder", "Account number", "IBAN", "SWIFT/BIC", "PIN"]
         case .taxNumber: ["Full name", "Tax number", "Country"]
         case .apiKey: ["Service", "Environment", "Key", "Secret"]

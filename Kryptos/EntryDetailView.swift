@@ -11,12 +11,55 @@ struct EntryDetailView: View {
     @State private var revealedFields = Set<UUID>()
     @State private var qrPayload: QRPayload?
 
-    private var fields: [VaultField] {
-        (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
+    @State private var fields: [VaultField] = []
+    @State private var attachment: Data? = nil
+    @State private var isLoading = true
+    @State private var toastMessage: String? = nil
+    @State private var toastTask: Task<Void, Never>? = nil
+
+    private func decryptRecord() {
+        isLoading = true
+        let encryptedFields = record.encryptedFields
+        let encryptedAttachment = record.encryptedAttachment
+        
+        Task {
+            do {
+                let decryptedFields = try await Task.detached(priority: .userInitiated) {
+                    try VaultCrypto.shared.decodeFields(encryptedFields)
+                }.value
+                
+                let decryptedAttachment = try await Task.detached(priority: .userInitiated) {
+                    try encryptedAttachment.map { try VaultCrypto.shared.open($0) }
+                }.value
+                
+                await MainActor.run {
+                    self.fields = decryptedFields
+                    self.attachment = decryptedAttachment
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                }
+            }
+        }
     }
 
-    private var attachment: Data? {
-        record.encryptedAttachment.flatMap { try? VaultCrypto.shared.open($0) }
+    private func triggerToast(message: String) {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+        
+        toastTask?.cancel()
+        toastMessage = message
+        
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                toastMessage = nil
+            }
+        }
     }
 
     private var reminderText: String? {
@@ -40,112 +83,154 @@ struct EntryDetailView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                HStack {
-                    VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: attachment)
-                        .frame(maxWidth: 320)
-                    Spacer(minLength: 0)
-                }
-                .listRowInsets(EdgeInsets(top: 12, leading: 18, bottom: 12, trailing: 18))
-                .listRowBackground(Color.clear)
-            }
-
-            let copyableFields = fields.filter { !$0.value.isEmpty }
-            if !copyableFields.isEmpty {
-                Section("Values") {
-                    ForEach(copyableFields) { field in
-                        FieldRow(
-                            field: field,
-                            sensitive: isSensitive(field),
-                            revealed: !isSensitive(field) || revealedFields.contains(field.id),
-                            onToggle: {
-                                if revealedFields.contains(field.id) {
-                                    revealedFields.remove(field.id)
-                                } else {
-                                    revealedFields.insert(field.id)
-                                }
-                            },
-                            onValueTap: {
-                                if isSensitive(field) {
-                                    revealedFields.insert(field.id)
-                                }
-                                SecureClipboard.copy(label: field.name, value: field.value)
-                            }
-                        )
-                    }
-                }
-            }
-
-            if let attachment, !heroShowsAttachment, let image = UIImage(data: attachment) {
-                Section("Attachment") {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-            }
-
-            if let reminderText {
-                Section {
-                    Label {
-                        Text(reminderText)
-                            .font(.footnote)
-                    } icon: {
-                        Image(systemName: "bell.badge.fill")
-                            .foregroundStyle(BrandPalette.primary)
-                    }
-                }
-            }
-
-            Section {
-                Button {
-                    qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share with another device")
-                    }
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
-                .listRowBackground(Color.clear)
-
-                Text("Scan the QR from another Kryptos app (iOS or Android) to import this entry instantly. Works fully offline.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .listRowBackground(Color.clear)
-
-                if record.template == .qrCode, let rawValue = originalQRValue, !rawValue.isEmpty {
-                    Button {
-                        qrPayload = QRPayload(value: rawValue, title: record.title)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "qrcode")
-                            Text("Show original QR")
-                        }
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
-                    .listRowBackground(Color.clear)
-
-                    Text("The original QR — scannable by any QR reader (Wi-Fi, URL, vCard, etc.).")
-                        .font(.footnote)
+        ZStack {
+            if isLoading {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .tint(BrandPalette.primary)
+                    Text("Decrypting securely...")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(uiColor: .systemGroupedBackground))
+            } else {
+                List {
+                    Section {
+                        HStack {
+                            VaultHeroCard(template: record.template, title: record.title, fields: fields, attachment: attachment)
+                                .frame(maxWidth: 320)
+                            Spacer(minLength: 0)
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 18, bottom: 12, trailing: 18))
                         .listRowBackground(Color.clear)
+                    }
+
+                    let copyableFields = fields.filter { !$0.value.isEmpty }
+                    if !copyableFields.isEmpty {
+                        Section("Values") {
+                            ForEach(copyableFields) { field in
+                                FieldRow(
+                                    field: field,
+                                    sensitive: isSensitive(field),
+                                    revealed: !isSensitive(field) || revealedFields.contains(field.id),
+                                    onToggle: {
+                                        if revealedFields.contains(field.id) {
+                                            revealedFields.remove(field.id)
+                                        } else {
+                                            revealedFields.insert(field.id)
+                                        }
+                                    },
+                                    onValueTap: {
+                                        if isSensitive(field) {
+                                            revealedFields.insert(field.id)
+                                        }
+                                        SecureClipboard.copy(label: field.name, value: field.value)
+                                        triggerToast(message: "Copied \(field.name)")
+                                    },
+                                    onCopy: {
+                                        SecureClipboard.copy(label: field.name, value: field.value)
+                                        triggerToast(message: "Copied \(field.name)")
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if let attachment, !heroShowsAttachment, let image = UIImage(data: attachment) {
+                        Section("Attachment") {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                    }
+
+                    if let reminderText {
+                        Section {
+                            Label {
+                                Text(reminderText)
+                                    .font(.footnote)
+                            } icon: {
+                                Image(systemName: "bell.badge.fill")
+                                    .foregroundStyle(BrandPalette.primary)
+                            }
+                        }
+                    }
+
+                    Section {
+                        Button {
+                            qrPayload = QRPayload(value: makeQRPayload(), title: record.title)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.up")
+                                  Text("Share with another device")
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                        .listRowBackground(Color.clear)
+
+                        Text("Scan the QR from another Kryptos app (iOS or Android) to import this entry instantly. Works fully offline.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(Color.clear)
+
+                        if record.template == .qrCode, let rawValue = originalQRValue, !rawValue.isEmpty {
+                            Button {
+                                qrPayload = QRPayload(value: rawValue, title: record.title)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "qrcode")
+                                    Text("Show original QR")
+                                }
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.capsule)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                            .listRowBackground(Color.clear)
+
+                            Text("The original QR — scannable by any QR reader (Wi-Fi, URL, vCard, etc.).")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .listRowBackground(Color.clear)
+                        }
+                    }
+
+                    Section {
+                        Text("Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
-            Section {
-                Text("Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            if let message = toastMessage {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(message)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(Color.black.opacity(0.85))
+                            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                    )
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toastMessage)
             }
         }
         .navigationTitle(record.title.isEmpty ? "Entry Details" : record.title)
@@ -188,6 +273,12 @@ struct EntryDetailView: View {
         } message: {
             Text("This permanently removes \(record.title.isEmpty ? "this entry" : record.title) from your vault.")
         }
+        .task {
+            decryptRecord()
+        }
+        .onChange(of: record.updatedAt) { _, _ in
+            decryptRecord()
+        }
     }
 
     private var originalQRValue: String? {
@@ -225,6 +316,7 @@ private struct FieldRow: View {
     let revealed: Bool
     let onToggle: () -> Void
     let onValueTap: () -> Void
+    let onCopy: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -254,7 +346,7 @@ private struct FieldRow: View {
                 .buttonStyle(.borderless)
             }
             Button {
-                SecureClipboard.copy(label: field.name, value: field.value)
+                onCopy()
             } label: {
                 Image(systemName: "doc.on.doc")
             }

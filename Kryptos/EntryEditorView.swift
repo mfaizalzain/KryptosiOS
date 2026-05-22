@@ -18,90 +18,115 @@ struct EntryEditorView: View {
     @State private var duplicate: VaultEntryRecord?
     @State private var saveError: String?
     @State private var didApplyInitialQR = false
+    @State private var isLoading = false
 
     init(record: VaultEntryRecord?, ownerId: String, initialQRPayload: String? = nil) {
         self.record = record
         self.ownerId = ownerId
         self.initialQRPayload = initialQRPayload
-        let draft = VaultEntryDraft(record: record, crypto: .shared)
-        _title = State(initialValue: draft.title)
-        _template = State(initialValue: draft.template)
-        _fields = State(initialValue: draft.fields)
-        _attachment = State(initialValue: draft.attachment)
+        
+        _title = State(initialValue: record?.title ?? "")
+        _template = State(initialValue: record?.template ?? .idCard)
+        
+        if record == nil {
+            _fields = State(initialValue: VaultTemplate.idCard.defaultFields.map { VaultField(name: $0, value: "") })
+            _isLoading = State(initialValue: false)
+        } else {
+            _fields = State(initialValue: [])
+            _isLoading = State(initialValue: true)
+        }
+        _attachment = State(initialValue: nil)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("Title", text: $title)
-                        .textInputAutocapitalization(.words)
-                }
+                if isLoading {
+                    Section {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 12) {
+                                ProgressView()
+                                    .tint(BrandPalette.primary)
+                                Text("Decrypting securely...")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 24)
+                    }
+                } else {
+                    Section {
+                        TextField("Title", text: $title)
+                            .textInputAutocapitalization(.words)
+                    }
 
-                Section("Type") {
-                    Picker("Template", selection: $template) {
-                        ForEach(VaultTemplate.allCases) { item in
-                            Label(item.title, systemImage: item.symbol).tag(item)
+                    Section("Type") {
+                        Picker("Template", selection: $template) {
+                            ForEach(VaultTemplate.allCases) { item in
+                                Label(item.title, systemImage: item.symbol).tag(item)
+                            }
+                        }
+                        .pickerStyle(.navigationLink)
+                        .onChange(of: template) { _, newValue in
+                            if fields.allSatisfy({ $0.value.isEmpty }) {
+                                fields = newValue.defaultFields.map { VaultField(name: $0, value: "") }
+                            }
                         }
                     }
-                    .pickerStyle(.navigationLink)
-                    .onChange(of: template) { _, newValue in
-                        if fields.allSatisfy({ $0.value.isEmpty }) {
-                            fields = newValue.defaultFields.map { VaultField(name: $0, value: "") }
-                        }
-                    }
-                }
 
-                Section {
-                    if template.supportsCameraScan {
+                    Section {
+                        if template.supportsCameraScan {
+                            Button {
+                                activeScan = .document
+                            } label: {
+                                Label("Scan document", systemImage: "doc.viewfinder")
+                            }
+                        }
+
                         Button {
-                            activeScan = .document
+                            activeScan = .qr
                         } label: {
-                            Label("Scan document", systemImage: "doc.viewfinder")
+                            Label(template == .qrCode ? "Scan QR to import" : "Scan QR", systemImage: "qrcode.viewfinder")
                         }
+                    } header: {
+                        Text("Fill from scan")
+                    } footer: {
+                        Text(scanFooter)
                     }
 
-                    Button {
-                        activeScan = .qr
-                    } label: {
-                        Label(template == .qrCode ? "Scan QR to import" : "Scan QR", systemImage: "qrcode.viewfinder")
-                    }
-                } header: {
-                    Text("Fill from scan")
-                } footer: {
-                    Text(scanFooter)
-                }
+                    Section {
+                        ForEach($fields) { $field in
+                            FieldEditorRow(template: template, field: $field, isDefault: template.defaultFields.contains { $0.localizedCaseInsensitiveCompare(field.name) == .orderedSame })
+                        }
+                        .onDelete { indexSet in
+                            fields.remove(atOffsets: indexSet)
+                        }
 
-                Section {
-                    ForEach($fields) { $field in
-                        FieldEditorRow(template: template, field: $field, isDefault: template.defaultFields.contains { $0.localizedCaseInsensitiveCompare(field.name) == .orderedSame })
-                    }
-                    .onDelete { indexSet in
-                        fields.remove(atOffsets: indexSet)
-                    }
-
-                    Button {
-                        fields.append(VaultField(name: "Field", value: ""))
-                    } label: {
-                        Label("Add field", systemImage: "plus")
-                    }
-                } header: {
-                    Text("Fields")
-                } footer: {
-                    reminderHint
-                }
-
-                if let attachment, let image = UIImage(data: attachment) {
-                    Section("Attachment") {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                        Button(role: .destructive) {
-                            self.attachment = nil
+                        Button {
+                            fields.append(VaultField(name: "Field", value: ""))
                         } label: {
-                            Label("Remove attachment", systemImage: "trash")
+                            Label("Add field", systemImage: "plus")
+                        }
+                    } header: {
+                        Text("Fields")
+                    } footer: {
+                        reminderHint
+                    }
+
+                    if let attachment, let image = UIImage(data: attachment) {
+                        Section("Attachment") {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                            Button(role: .destructive) {
+                                self.attachment = nil
+                            } label: {
+                                Label("Remove attachment", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -114,10 +139,37 @@ struct EntryEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(isLoading || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onAppear {
+            .task {
+                if let record = record, fields.isEmpty && attachment == nil {
+                    isLoading = true
+                    let encryptedFields = record.encryptedFields
+                    let encryptedAttachment = record.encryptedAttachment
+                    do {
+                        let decryptedFields = try await Task.detached(priority: .userInitiated) {
+                            try VaultCrypto.shared.decodeFields(encryptedFields)
+                        }.value
+                        
+                        let decryptedAttachment = try await Task.detached(priority: .userInitiated) {
+                            try encryptedAttachment.map { try VaultCrypto.shared.open($0) }
+                        }.value
+                        
+                        await MainActor.run {
+                            self.fields = decryptedFields
+                            self.attachment = decryptedAttachment
+                            self.isLoading = false
+                        }
+                    } catch {
+                        await MainActor.run {
+                            self.isLoading = false
+                        }
+                    }
+                } else {
+                    isLoading = false
+                }
+
                 if !didApplyInitialQR, let payload = initialQRPayload {
                     didApplyInitialQR = true
                     applyQR(payload)
