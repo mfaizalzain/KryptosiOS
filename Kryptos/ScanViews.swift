@@ -101,7 +101,7 @@ private extension CGImagePropertyOrientation {
     }
 }
 
-enum OCRParser {
+nonisolated enum OCRParser {
     static func parse(text: String, template: VaultTemplate) -> [VaultField] {
         let lines = text
             .split(whereSeparator: \.isNewline)
@@ -180,11 +180,10 @@ enum OCRParser {
         var candidates: [String] = []
         for line in lines + [lines.joined(separator: " ")] {
             let normalized = normalizePaymentDigits(line)
-            candidates.append(contentsOf: matches(in: normalized, pattern: #"(?:\d[ -]*){13,19}"#).map(\.digitsOnly))
+            candidates.append(contentsOf: matches(in: normalized, pattern: #"(?:\d[ -]*){13,19}"#).map { String($0.filter(\.isNumber)) })
         }
-        let validCandidates = candidates
+        let validCandidates = removingDuplicates(from: candidates)
             .filter { (13...19).contains($0.count) }
-            .removingDuplicates()
         return validCandidates.first(where: isLuhnValid) ?? validCandidates.first ?? ""
     }
 
@@ -228,6 +227,11 @@ enum OCRParser {
             guard let swiftRange = Range(match.range, in: text) else { return nil }
             return String(text[swiftRange])
         }
+    }
+
+    private static func removingDuplicates(from values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
     }
 
     private static func isLuhnValid(_ digits: String) -> Bool {

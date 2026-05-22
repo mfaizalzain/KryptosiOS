@@ -19,7 +19,7 @@ enum KryptosSecurityError: LocalizedError {
     }
 }
 
-final class KeychainStore {
+nonisolated final class KeychainStore {
     static let shared = KeychainStore()
     private init() {}
 
@@ -70,7 +70,7 @@ final class KeychainStore {
     }
 }
 
-final class VaultCrypto {
+nonisolated final class VaultCrypto {
     static let shared = VaultCrypto()
     private let keychain = KeychainStore.shared
     private let keyName = "vault.crypto.key.v1"
@@ -162,11 +162,12 @@ final class BiometricGate: ObservableObject {
         }
 
         context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { [weak self] success, authError in
-            Task { @MainActor in
+            let message = authError?.localizedDescription ?? "Authentication was cancelled."
+            Task { @MainActor [weak self, success, message] in
                 if success {
                     self?.unlocked = true
                 } else {
-                    self?.message = authError?.localizedDescription ?? "Authentication was cancelled."
+                    self?.message = message
                 }
             }
         }

@@ -318,10 +318,7 @@ final class GoogleAuthService: NSObject, ObservableObject {
 extension GoogleAuthService: ASWebAuthenticationPresentationContextProviding {
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+            Self.presentationAnchor()
         }
     }
 }
@@ -329,11 +326,22 @@ extension GoogleAuthService: ASWebAuthenticationPresentationContextProviding {
 extension GoogleAuthService: ASAuthorizationControllerPresentationContextProviding {
     nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+            Self.presentationAnchor()
         }
+    }
+}
+
+private extension GoogleAuthService {
+    static func presentationAnchor() -> ASPresentationAnchor {
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+        guard let windowScene else {
+            preconditionFailure("A window scene is required to present authentication.")
+        }
+        return windowScene
+            .windows
+            .first { $0.isKeyWindow } ?? ASPresentationAnchor(windowScene: windowScene)
     }
 }
 
