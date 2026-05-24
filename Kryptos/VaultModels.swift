@@ -72,7 +72,7 @@ enum VaultTemplate: String, Codable, CaseIterable, Identifiable {
         case .taxNumber: ["Full name", "Tax number", "Country"]
         case .apiKey: ["Service", "Environment", "Key", "Secret"]
         case .note: ["Content"]
-        case .qrCode: ["Data"]
+        case .qrCode: ["QR type", "Data"]
         }
     }
 
