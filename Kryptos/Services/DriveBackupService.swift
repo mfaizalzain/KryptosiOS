@@ -3,113 +3,6 @@ import Combine
 import Foundation
 import SwiftData
 
-enum BackupError: LocalizedError {
-    case noInternet
-    case driveAuthExpired
-    case drivePermission
-    case driveRateLimited
-    case driveTemporary
-    case driveUnknown
-    case iCloudSignedOut
-    case iCloudQuota
-    case iCloudPermission
-    case iCloudConflict
-    case iCloudMissingData
-    case iCloudUnknown
-    case noBackupFound
-
-    var errorDescription: String? {
-        switch self {
-        case .noInternet:
-            "No internet connection. Please reconnect and try again."
-        case .driveAuthExpired:
-            "Your Google sign-in has expired. Sign out and sign in again to back up to Drive."
-        case .drivePermission:
-            "Kryptos doesn't have permission to use Google Drive. Sign in again and allow access."
-        case .driveRateLimited:
-            "Too many Drive requests. Please wait a moment and try again."
-        case .driveTemporary:
-            "Google Drive is temporarily unavailable. Please try again later."
-        case .driveUnknown:
-            "Couldn't reach Google Drive. Please try again."
-        case .iCloudSignedOut:
-            "Sign in to iCloud in your device Settings to back up."
-        case .iCloudQuota:
-            "Your iCloud storage is full. Free up space in your device Settings to continue."
-        case .iCloudPermission:
-            "Kryptos doesn't have permission to use iCloud. Check your device Settings."
-        case .iCloudConflict:
-            "Your iCloud backup was updated from another device. Please try again."
-        case .iCloudMissingData:
-            "The iCloud backup is missing some data. Please back up again from this device."
-        case .iCloudUnknown:
-            "Couldn't reach iCloud. Please try again."
-        case .noBackupFound:
-            "No backup found yet."
-        }
-    }
-
-    static func fromDrive(status: Int) -> BackupError {
-        switch status {
-        case 401: .driveAuthExpired
-        case 403: .drivePermission
-        case 429: .driveRateLimited
-        case 500...599: .driveTemporary
-        default: .driveUnknown
-        }
-    }
-
-    static func from(_ error: Error) -> BackupError {
-        if let backup = error as? BackupError { return backup }
-        if let urlError = error as? URLError {
-            switch urlError.code {
-            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
-                return .noInternet
-            case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
-                return .driveTemporary
-            default:
-                return .driveUnknown
-            }
-        }
-        if let ckError = error as? CKError {
-            switch ckError.code {
-            case .networkUnavailable, .networkFailure:
-                return .noInternet
-            case .notAuthenticated, .accountTemporarilyUnavailable:
-                return .iCloudSignedOut
-            case .quotaExceeded:
-                return .iCloudQuota
-            case .permissionFailure:
-                return .iCloudPermission
-            case .serverRecordChanged, .changeTokenExpired, .batchRequestFailed:
-                return .iCloudConflict
-            case .unknownItem, .zoneNotFound, .userDeletedZone, .assetFileNotFound, .assetFileModified:
-                return .iCloudMissingData
-            default:
-                return .iCloudUnknown
-            }
-        }
-        return .driveUnknown
-    }
-}
-
-struct BackupPayload: Codable {
-    struct Entry: Codable {
-        var id: UUID
-        var ownerId: String
-        var templateRaw: String
-        var title: String
-        var encryptedFields: Data
-        var encryptedAttachment: Data?
-        var createdAt: Date
-        var updatedAt: Date
-    }
-
-    var version: Int
-    var exportedAt: Date
-    var entries: [Entry]
-}
-
 @MainActor
 final class DriveBackupService: ObservableObject {
     @Published var workingMessage: String?
@@ -131,6 +24,7 @@ final class DriveBackupService: ObservableObject {
     private let iCloudUpdatedAtField = "updatedAt"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let drive = DriveAPIClient()
 
     var lastAppDataBackupAt: Date? { storedDate(forKey: lastAppDataBackupKey) ?? storedDate(forKey: legacyDriveBackupKey) }
     var lastMyDriveBackupAt: Date? { storedDate(forKey: lastMyDriveBackupKey) }
@@ -157,15 +51,15 @@ final class DriveBackupService: ObservableObject {
 
             if toMyDrive {
                 workingMessage = "Finding \(myDriveFolderName) folder..."
-                let folderId = try await getOrCreateFolder(session: session)
-                try await uploadOrReplace(session: session, name: backupName, data: payload.vault, mime: "application/json", parent: folderId, appData: false)
-                try await uploadOrReplace(session: session, name: keyName, data: payload.key, mime: "application/octet-stream", parent: folderId, appData: false)
+                let folderId = try await drive.getOrCreateFolder(session: session)
+                try await drive.uploadOrReplace(session: session, name: backupName, data: payload.vault, mime: "application/json", parent: folderId, appData: false)
+                try await drive.uploadOrReplace(session: session, name: keyName, data: payload.key, mime: "application/octet-stream", parent: folderId, appData: false)
                 UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: lastMyDriveBackupKey)
                 feedback = "Backup to My Drive complete."
             } else {
                 workingMessage = "Uploading to your private Drive folder..."
-                try await uploadOrReplace(session: session, name: backupName, data: payload.vault, mime: "application/json", parent: "appDataFolder", appData: true)
-                try await uploadOrReplace(session: session, name: keyName, data: payload.key, mime: "application/octet-stream", parent: "appDataFolder", appData: true)
+                try await drive.uploadOrReplace(session: session, name: backupName, data: payload.vault, mime: "application/json", parent: "appDataFolder", appData: true)
+                try await drive.uploadOrReplace(session: session, name: keyName, data: payload.key, mime: "application/octet-stream", parent: "appDataFolder", appData: true)
                 UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: lastAppDataBackupKey)
                 feedback = "Backup complete."
             }
@@ -287,24 +181,24 @@ final class DriveBackupService: ObservableObject {
     }
 
     private func findAppDataCandidate(session: DriveSession) async throws -> DriveBackupCandidate? {
-        guard let backupFile = try await findFile(session: session, name: backupName, appData: true) else { return nil }
-        let data = try await download(session: session, fileId: backupFile.id)
+        guard let backupFile = try await drive.findFile(session: session, name: backupName, appData: true) else { return nil }
+        let data = try await drive.download(session: session, fileId: backupFile.id)
         let payload = try decoder.decode(BackupPayload.self, from: data)
         var keyData: Data?
-        if let keyFile = try await findFile(session: session, name: keyName, appData: true) {
-            keyData = try await download(session: session, fileId: keyFile.id)
+        if let keyFile = try await drive.findFile(session: session, name: keyName, appData: true) {
+            keyData = try await drive.download(session: session, fileId: keyFile.id)
         }
         return DriveBackupCandidate(source: .appData, payload: payload, keyData: keyData)
     }
 
     private func findMyDriveCandidate(session: DriveSession) async throws -> DriveBackupCandidate? {
-        guard let folder = try await findFile(session: session, name: myDriveFolderName, appData: false) else { return nil }
-        guard let backupFile = try await findFile(session: session, name: backupName, parent: folder.id, appData: false) else { return nil }
-        let data = try await download(session: session, fileId: backupFile.id)
+        guard let folder = try await drive.findFile(session: session, name: myDriveFolderName, appData: false) else { return nil }
+        guard let backupFile = try await drive.findFile(session: session, name: backupName, parent: folder.id, appData: false) else { return nil }
+        let data = try await drive.download(session: session, fileId: backupFile.id)
         let payload = try decoder.decode(BackupPayload.self, from: data)
         var keyData: Data?
-        if let keyFile = try await findFile(session: session, name: keyName, parent: folder.id, appData: false) {
-            keyData = try await download(session: session, fileId: keyFile.id)
+        if let keyFile = try await drive.findFile(session: session, name: keyName, parent: folder.id, appData: false) {
+            keyData = try await drive.download(session: session, fileId: keyFile.id)
         }
         return DriveBackupCandidate(source: .myDrive, payload: payload, keyData: keyData)
     }
@@ -372,128 +266,6 @@ final class DriveBackupService: ObservableObject {
         return nil
     }
 
-    private struct DriveFile: Decodable {
-        var id: String
-        var modifiedTime: String?
-    }
-
-    private struct DriveList: Decodable {
-        var files: [DriveFile]
-    }
-
-    final class DriveSession {
-        private(set) var token: String
-        private let refresh: TokenRefresher?
-
-        init(token: String, refresh: TokenRefresher?) {
-            self.token = token
-            self.refresh = refresh
-        }
-
-        func renewIfPossible() async -> Bool {
-            guard let refresh, let newToken = await refresh() else { return false }
-            token = newToken
-            return true
-        }
-    }
-
-    private func findFile(session: DriveSession, name: String, parent: String? = nil, appData: Bool) async throws -> DriveFile? {
-        var query = "name='\(name)' and trashed=false"
-        if let parent { query += " and '\(parent)' in parents" }
-        var components = URLComponents(string: "https://www.googleapis.com/drive/v3/files")!
-        components.queryItems = [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "fields", value: "files(id,modifiedTime)"),
-            URLQueryItem(name: "orderBy", value: "modifiedTime desc")
-        ]
-        if appData {
-            components.queryItems?.append(URLQueryItem(name: "spaces", value: "appDataFolder"))
-        }
-        let list: DriveList = try await request(session: session, url: components.url!)
-        return list.files.first
-    }
-
-    private func uploadOrReplace(session: DriveSession, name: String, data: Data, mime: String, parent: String, appData: Bool) async throws {
-        if let existing = try await findFile(session: session, name: name, parent: appData ? nil : parent, appData: appData) {
-            var components = URLComponents(string: "https://www.googleapis.com/upload/drive/v3/files/\(existing.id)")!
-            components.queryItems = [URLQueryItem(name: "uploadType", value: "media")]
-            var request = URLRequest(url: components.url!)
-            request.httpMethod = "PATCH"
-            request.setValue(mime, forHTTPHeaderField: "Content-Type")
-            request.httpBody = data
-            let _: Data = try await self.request(session: session, request: request)
-            return
-        }
-
-        let boundary = "KryptosBoundary\(Int(Date.now.timeIntervalSince1970))"
-        let metadata = ["name": name, "parents": [parent], "mimeType": mime] as [String: Any]
-        let metadataData = try JSONSerialization.data(withJSONObject: metadata)
-        var body = Data()
-        body.append("--\(boundary)\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".data(using: .utf8)!)
-        body.append(metadataData)
-        body.append("\r\n--\(boundary)\r\nContent-Type: \(mime)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-        var components = URLComponents(string: "https://www.googleapis.com/upload/drive/v3/files")!
-        components.queryItems = [URLQueryItem(name: "uploadType", value: "multipart"), URLQueryItem(name: "fields", value: "id")]
-        var request = URLRequest(url: components.url!)
-        request.httpMethod = "POST"
-        request.setValue("multipart/related; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
-        let _: Data = try await self.request(session: session, request: request)
-    }
-
-    private func getOrCreateFolder(session: DriveSession) async throws -> String {
-        if let folder = try await findFile(session: session, name: myDriveFolderName, appData: false) {
-            return folder.id
-        }
-        let metadata = ["name": myDriveFolderName, "mimeType": "application/vnd.google-apps.folder"]
-        var request = URLRequest(url: URL(string: "https://www.googleapis.com/drive/v3/files")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: metadata)
-        let created: DriveFile = try await self.request(session: session, request: request)
-        return created.id
-    }
-
-    private func download(session: DriveSession, fileId: String) async throws -> Data {
-        let url = URL(string: "https://www.googleapis.com/drive/v3/files/\(fileId)?alt=media")!
-        return try await request(session: session, url: url)
-    }
-
-    private func request<T: Decodable>(session: DriveSession, url: URL) async throws -> T {
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        return try await self.request(session: session, request: request)
-    }
-
-    private func request<T: Decodable>(session: DriveSession, request: URLRequest) async throws -> T {
-        let data: Data = try await self.request(session: session, request: request)
-        return try decoder.decode(T.self, from: data)
-    }
-
-    private func request(session: DriveSession, request original: URLRequest) async throws -> Data {
-        var attempt = original
-        attempt.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: attempt)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        if status == 401, await session.renewIfPossible() {
-            var retry = original
-            retry.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-            let (retryData, retryResponse) = try await URLSession.shared.data(for: retry)
-            let retryStatus = (retryResponse as? HTTPURLResponse)?.statusCode ?? -1
-            guard (200..<300).contains(retryStatus) else {
-                throw BackupError.fromDrive(status: retryStatus)
-            }
-            return retryData
-        }
-        guard (200..<300).contains(status) else {
-            throw BackupError.fromDrive(status: status)
-        }
-        return data
-    }
-
     private var iCloudDatabase: CKDatabase {
         CKContainer(identifier: iCloudContainerIdentifier).privateCloudDatabase
     }
@@ -510,4 +282,3 @@ final class DriveBackupService: ObservableObject {
         try await iCloudDatabase.save(record)
     }
 }
-
