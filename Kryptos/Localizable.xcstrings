@@ -1,0 +1,356 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
+    "Add an \"Expiry\" field with a date (e.g. 12/2028 or 2028-12-31) and Kryptos will remind you 30, 7, and 1 day before it expires.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add an \"Expiry\" field with a date (e.g. 12/2028 or 2028-12-31) and Kryptos will remind you 30, 7, and 1 day before it expires."
+          }
+        }
+      }
+    },
+    "An entry with similar details already exists (%@). Save this anyway?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An entry with similar details already exists (%@). Save this anyway?"
+          }
+        }
+      }
+    },
+    "Backups go to a hidden Google Drive folder only your device can see. Upgrade to Pro to back up to a visible \"KryptosBackups\" folder you can copy or move yourself.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups go to a hidden Google Drive folder only your device can see. Upgrade to Pro to back up to a visible \"KryptosBackups\" folder you can copy or move yourself."
+          }
+        }
+      }
+    },
+    "Choose a standard format so other phones can open contacts, Wi-Fi, messages, maps, events, and payment addresses directly.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a standard format so other phones can open contacts, Wi-Fi, messages, maps, events, and payment addresses directly."
+          }
+        }
+      }
+    },
+    "Cloud Backup": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud Backup"
+          }
+        }
+      }
+    },
+    "Decrypting securely...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decrypting securely..."
+          }
+        }
+      }
+    },
+    "Delete Account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Account"
+          }
+        }
+      }
+    },
+    "Fields": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fields"
+          }
+        }
+      }
+    },
+    "Fill from scan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill from scan"
+          }
+        }
+      }
+    },
+    "Kryptos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kryptos"
+          }
+        }
+      }
+    },
+    "Permanently deletes your Kryptos account and every vault entry, encryption key, and reminder stored on this device. You will be signed out. This cannot be undone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently deletes your Kryptos account and every vault entry, encryption key, and reminder stored on this device. You will be signed out. This cannot be undone."
+          }
+        }
+      }
+    },
+    "QR content type": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR content type"
+          }
+        }
+      }
+    },
+    "Reminders": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminders"
+          }
+        }
+      }
+    },
+    "Restore scans both your visible \"KryptosBackups\" folder and any older hidden backup, and uses whichever is newest.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore scans both your visible \"KryptosBackups\" folder and any older hidden backup, and uses whichever is newest."
+          }
+        }
+      }
+    },
+    "Run on a device with a camera to scan documents.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run on a device with a camera to scan documents."
+          }
+        }
+      }
+    },
+    "Scan from another Kryptos app (iOS or Android) to import this entry. Works fully offline — nothing leaves your device.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan from another Kryptos app (iOS or Android) to import this entry. Works fully offline — nothing leaves your device."
+          }
+        }
+      }
+    },
+    "Scan the QR from another Kryptos app (iOS or Android) to import this entry instantly. Works fully offline.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan the QR from another Kryptos app (iOS or Android) to import this entry instantly. Works fully offline."
+          }
+        }
+      }
+    },
+    "Securely back up your data with encrypted cloud storage. Your data never leaves your device unencrypted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Securely back up your data with encrypted cloud storage. Your data never leaves your device unencrypted."
+          }
+        }
+      }
+    },
+    "Sends a local notification 30, 7, and 1 day before expiry for any entry that has an Expiry field, regardless of type.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sends a local notification 30, 7, and 1 day before expiry for any entry that has an Expiry field, regardless of type."
+          }
+        }
+      }
+    },
+    "Share with another device": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share with another device"
+          }
+        }
+      }
+    },
+    "Show original QR": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show original QR"
+          }
+        }
+      }
+    },
+    "Signed in with %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in with %@"
+          }
+        }
+      }
+    },
+    "Tap Add Entry to secure your first document.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Add Entry to secure your first document."
+          }
+        }
+      }
+    },
+    "Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a value to reveal and copy it. The clipboard clears automatically after 30 seconds."
+          }
+        }
+      }
+    },
+    "The original QR — scannable by any QR reader (Wi-Fi, URL, vCard, etc.).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original QR — scannable by any QR reader (Wi-Fi, URL, vCard, etc.)."
+          }
+        }
+      }
+    },
+    "This permanently removes %@ from your vault.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes %@ from your vault."
+          }
+        }
+      }
+    },
+    "This permanently removes your Kryptos account from this device along with every vault entry, the encryption key, and all expiry reminders. You will be signed out and this cannot be undone. If you've previously backed up to iCloud or Google Drive, delete those backups separately to remove all copies.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This permanently removes your Kryptos account from this device along with every vault entry, the encryption key, and all expiry reminders. You will be signed out and this cannot be undone. If you've previously backed up to iCloud or Google Drive, delete those backups separately to remove all copies."
+          }
+        }
+      }
+    },
+    "This replaces the current local vault with the latest Drive AppData backup.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This replaces the current local vault with the latest Drive AppData backup."
+          }
+        }
+      }
+    },
+    "This replaces the current local vault with the latest iCloud backup.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This replaces the current local vault with the latest iCloud backup."
+          }
+        }
+      }
+    },
+    "To also remove copies stored in iCloud or Google Drive, delete those backups before deleting your account.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To also remove copies stored in iCloud or Google Drive, delete those backups before deleting your account."
+          }
+        }
+      }
+    },
+    "Upgrade to Pro to remove the %@ entry limit and support future development.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrade to Pro to remove the %@ entry limit and support future development."
+          }
+        }
+      }
+    },
+    "We'll remind you 30, 7, and 1 day before %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We'll remind you 30, 7, and 1 day before %@."
+          }
+        }
+      }
+    },
+    "Your private secure vault.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your private secure vault."
+          }
+        }
+      }
+    },
+    "·": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
