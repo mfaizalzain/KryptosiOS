@@ -74,4 +74,4 @@ Builds are archived locally (Xcode 26.6, Cloud Managed Apple Distribution) and u
 
 ## 📄 License
 
-Private repository — all rights reserved.
+Public repository — all rights reserved.
