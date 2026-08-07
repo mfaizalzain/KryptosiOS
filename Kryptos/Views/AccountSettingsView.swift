@@ -13,6 +13,18 @@ struct AccountSettingsView: View {
     @State private var confirmingDeleteAll = false
     @State private var confirmingDriveRestore = false
     @State private var confirmingICloudRestore = false
+    @State private var showingPassphraseSheet = false
+    @State private var showingRestorePassphrasePrompt = false
+    @State private var passphraseDraft = ""
+    @State private var passphraseConfirm = ""
+    @State private var passphraseError: String?
+    @State private var restorePassphrase = ""
+    @State private var pendingRestoreKind: RestoreKind?
+
+    private enum RestoreKind {
+        case drive
+        case iCloud
+    }
 
     private var ownerId: String { auth.account?.id ?? "local" }
     private var records: [VaultEntryRecord] { allRecords.filter { $0.ownerId == ownerId } }
@@ -24,6 +36,7 @@ struct AccountSettingsView: View {
                 proSection
                 remindersSection
                 backupSection
+                passphraseSection
                 aboutSection
                 dangerSection
             }
@@ -39,6 +52,7 @@ struct AccountSettingsView: View {
             }
             .alert("Restore from Google Drive?", isPresented: $confirmingDriveRestore) {
                 Button("Restore") {
+                    pendingRestoreKind = .drive
                     Task { await restoreFromDrive() }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -47,13 +61,163 @@ struct AccountSettingsView: View {
             }
             .alert("Restore from iCloud?", isPresented: $confirmingICloudRestore) {
                 Button("Restore") {
+                    pendingRestoreKind = .iCloud
                     Task { await restoreFromICloud() }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This replaces the current local vault with the latest iCloud backup.")
             }
+            .sheet(isPresented: $showingPassphraseSheet) {
+                passphraseSheet
+            }
+            .sheet(isPresented: $showingRestorePassphrasePrompt) {
+                restorePassphrasePrompt
+            }
+            .onChange(of: backup.restorePassphraseRequired) { _, required in
+                if required {
+                    showingRestorePassphrasePrompt = true
+                }
+            }
         }
+    }
+
+    private var passphraseSection: some View {
+        Section {
+            if backup.hasBackupPassphrase {
+                Label("Backup passphrase is set", systemImage: "checkmark.shield")
+                Text("Your vault key is wrapped with this passphrase before it's uploaded. The passphrase is never sent to iCloud or Google Drive.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Change passphrase") {
+                    passphraseDraft = ""
+                    passphraseConfirm = ""
+                    passphraseError = nil
+                    showingPassphraseSheet = true
+                }
+                Button("Remove passphrase", role: .destructive) {
+                    backup.removeBackupPassphrase()
+                }
+            } else {
+                Text("Backups currently upload the raw encryption key beside your data. Anyone with access to the backup file could decrypt it.")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                Button {
+                    passphraseDraft = ""
+                    passphraseConfirm = ""
+                    passphraseError = nil
+                    showingPassphraseSheet = true
+                } label: {
+                    Label("Set backup passphrase", systemImage: "key.shield")
+                }
+            }
+        } header: {
+            Text("Backup Passphrase")
+        } footer: {
+            Text("A passphrase adds zero-knowledge protection to your cloud backups. You'll need it to restore on a new device — if you forget it, the backup cannot be recovered.")
+        }
+    }
+
+    private var passphraseSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("Passphrase (min 6 characters)", text: $passphraseDraft)
+                        .textContentType(.newPassword)
+                    SecureField("Confirm passphrase", text: $passphraseConfirm)
+                        .textContentType(.newPassword)
+                }
+                if let passphraseError {
+                    Section {
+                        Text(passphraseError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+                Section {
+                    Text("You'll need this passphrase to restore your backup on a new device. Kryptos never stores it online, so there is no way to recover it if you forget it.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle(backup.hasBackupPassphrase ? "Change Passphrase" : "Set Passphrase")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        resetPassphraseSheet()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            guard passphraseDraft == passphraseConfirm else {
+                                passphraseError = "Passphrases don't match."
+                                return
+                            }
+                            try backup.setBackupPassphrase(passphraseDraft)
+                            resetPassphraseSheet()
+                        } catch {
+                            passphraseError = error.localizedDescription
+                        }
+                    }
+                    .disabled(passphraseDraft.isEmpty || passphraseConfirm.isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var restorePassphrasePrompt: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("Backup passphrase", text: $restorePassphrase)
+                        .textContentType(.password)
+                    Text("This backup is protected by a passphrase. Enter it to restore. The passphrase is only used on this device and is not sent anywhere.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Restore Passphrase")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        restorePassphrase = ""
+                        showingRestorePassphrasePrompt = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Restore") {
+                        let kind = pendingRestoreKind
+                        pendingRestoreKind = nil
+                        let passphrase = restorePassphrase
+                        restorePassphrase = ""
+                        showingRestorePassphrasePrompt = false
+                        Task {
+                            switch kind {
+                            case .drive:
+                                await restoreFromDrive(providedPassphrase: passphrase)
+                            case .iCloud:
+                                await restoreFromICloud(providedPassphrase: passphrase)
+                            case nil:
+                                break
+                            }
+                        }
+                    }
+                    .disabled(restorePassphrase.isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func resetPassphraseSheet() {
+        passphraseDraft = ""
+        passphraseConfirm = ""
+        passphraseError = nil
+        showingPassphraseSheet = false
     }
 
     private var accountSection: some View {
@@ -286,8 +450,8 @@ struct AccountSettingsView: View {
         await backup.backupToICloud(records: records)
     }
 
-    private func restoreFromICloud() async {
-        await backup.restoreFromICloud(modelContext: modelContext, ownerId: ownerId)
+    private func restoreFromICloud(providedPassphrase: String? = nil) async {
+        await backup.restoreFromICloud(modelContext: modelContext, ownerId: ownerId, providedPassphrase: providedPassphrase)
         await reminders.sync(records: records)
     }
 
@@ -297,7 +461,7 @@ struct AccountSettingsView: View {
         await backup.backup(records: records, accessToken: token, toMyDrive: toMyDrive, refresh: driveTokenRefresher(scope: scope))
     }
 
-    private func restoreFromDrive() async {
+    private func restoreFromDrive(providedPassphrase: String? = nil) async {
         let appDataToken = await auth.accessToken(requiring: GoogleAuthService.appDataScope)
         let myDriveToken: String?
         if billing.isPremium {
@@ -308,7 +472,7 @@ struct AccountSettingsView: View {
             myDriveToken = nil
         }
         let refresher = driveTokenRefresher(scope: billing.isPremium ? GoogleAuthService.driveFileScope : GoogleAuthService.appDataScope)
-        await backup.restore(appDataToken: appDataToken, myDriveToken: myDriveToken, modelContext: modelContext, ownerId: ownerId, refresh: refresher)
+        await backup.restore(appDataToken: appDataToken, myDriveToken: myDriveToken, modelContext: modelContext, ownerId: ownerId, refresh: refresher, providedPassphrase: providedPassphrase)
         await reminders.sync(records: records)
     }
 

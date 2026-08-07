@@ -28,13 +28,44 @@ struct FieldEditorRow: View {
                 )
                 .labelsHidden()
             case .paymentExpiry, .integer, .text:
-                TextField("Value", text: Binding(
-                    get: { displayedValue },
-                    set: { field.value = FieldInputRules.sanitize($0, for: template, fieldName: field.name) }
-                ), axis: .vertical)
-                .keyboardType(keyboardType)
+                HStack(alignment: .center, spacing: 10) {
+                    TextField("Value", text: Binding(
+                        get: { displayedValue },
+                        set: { field.value = FieldInputRules.sanitize($0, for: template, fieldName: field.name) }
+                    ), axis: .vertical)
+                    .keyboardType(keyboardType)
+                    .frame(maxWidth: .infinity)
+
+                    if let generator {
+                        Button {
+                            field.value = generator()
+                        } label: {
+                            Image(systemName: "dice.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(BrandPalette.primary)
+                                .frame(width: 36, height: 36)
+                                .background(BrandPalette.primary.opacity(0.12), in: Circle())
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Generate secure value")
+                    }
+                }
             }
         }
+    }
+
+    private var generator: (() -> String)? {
+        let name = field.name.lowercased()
+        if name.contains("pin") {
+            return { CredentialGenerator.pin() }
+        }
+        if template == .apiKey && (name == "key" || name.contains("secret")) {
+            return { CredentialGenerator.apiKey() }
+        }
+        if ["password", "secret", "token", "passphrase", "passcode", "key", "code"].contains(where: { name.contains($0) }) {
+            return { CredentialGenerator.password() }
+        }
+        return nil
     }
 
     private var displayedValue: String {

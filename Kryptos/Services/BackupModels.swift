@@ -15,6 +15,9 @@ enum BackupError: LocalizedError {
     case iCloudMissingData
     case iCloudUnknown
     case noBackupFound
+    case invalidBackup
+    case backupPassphraseRequired
+    case backupPassphraseIncorrect
 
     var errorDescription: String? {
         switch self {
@@ -44,6 +47,12 @@ enum BackupError: LocalizedError {
             "Couldn't reach iCloud. Please try again."
         case .noBackupFound:
             "No backup found yet."
+        case .invalidBackup:
+            "This backup could not be validated. Back up again from the device that still has your entries."
+        case .backupPassphraseRequired:
+            "This backup is protected by a passphrase. Enter your backup passphrase to restore."
+        case .backupPassphraseIncorrect:
+            "The backup passphrase is incorrect."
         }
     }
 
@@ -108,4 +117,3 @@ struct BackupPayload: Codable {
     var exportedAt: Date
     var entries: [Entry]
 }
-

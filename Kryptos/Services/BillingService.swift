@@ -45,11 +45,23 @@ final class BillingService: ObservableObject {
     }
 
     func refreshEntitlements() async {
+        var foundProduct = false
+        var verified = false
         for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result, transaction.productID == Self.productID {
-                setPremium(true)
-                return
+            guard result.unsafePayloadValue.productID == Self.productID else { continue }
+            foundProduct = true
+            if case .verified = result {
+                verified = true
+                break
             }
+        }
+        if foundProduct {
+            // Keep the cached value for unverified transactions so a paying user is never
+            // downgraded because of a transient verification failure.
+            if verified { setPremium(true) }
+        } else {
+            // No matching entitlement anymore (e.g. refunded): reconcile the cache to free.
+            setPremium(false)
         }
     }
 

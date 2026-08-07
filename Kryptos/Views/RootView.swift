@@ -4,19 +4,49 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var auth: GoogleAuthService
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var gate = BiometricGate()
 
     var body: some View {
-        Group {
-            if auth.account == nil || !gate.unlocked {
-                LockView()
-                    .environmentObject(gate)
-            } else {
-                VaultListView()
-                    .environmentObject(gate)
+        ZStack {
+            Group {
+                if auth.account == nil || !gate.unlocked {
+                    LockView()
+                        .environmentObject(gate)
+                } else {
+                    VaultListView()
+                        .environmentObject(gate)
+                }
+            }
+            .tint(BrandPalette.primary)
+
+            if scenePhase != .active {
+                PrivacyRedactionView()
             }
         }
-        .tint(BrandPalette.primary)
+    }
+}
+
+private struct PrivacyRedactionView: View {
+    var body: some View {
+        ZStack {
+            BrandPalette.surfaceGradient
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 42, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Kryptos Locked")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("Your vault is hidden while the app is inactive.")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.72))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(28)
+        }
     }
 }
 

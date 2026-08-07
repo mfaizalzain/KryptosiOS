@@ -2,6 +2,10 @@ import SwiftData
 import SwiftUI
 
 struct VaultListView: View {
+    private final class DecryptedFieldCache {
+        var store: [UUID: (updatedAt: Date, fields: [VaultField])] = [:]
+    }
+
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var auth: GoogleAuthService
     @EnvironmentObject private var billing: BillingService
@@ -12,6 +16,7 @@ struct VaultListView: View {
     @State private var showingSettings = false
     @State private var showingQRScanner = false
     @State private var importedQRPayload: String?
+    @State private var fieldCache = DecryptedFieldCache()
 
     private var ownerId: String { auth.account?.id ?? "local" }
     private var records: [VaultEntryRecord] { allRecords.filter { $0.ownerId == ownerId } }
@@ -171,8 +176,20 @@ struct VaultListView: View {
         guard !query.isEmpty else { return true }
         if record.title.lowercased().contains(query) { return true }
         if record.template.pluralTitle.lowercased().contains(query) { return true }
-        let fields = (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
+        let fields = decryptedFields(for: record)
         return fields.contains { $0.name.lowercased().contains(query) || $0.value.lowercased().contains(query) }
+    }
+
+    private func decryptedFields(for record: VaultEntryRecord) -> [VaultField] {
+        if let cached = fieldCache.store[record.id], cached.updatedAt == record.updatedAt {
+            return cached.fields
+        }
+        if fieldCache.store.count > 200 {
+            fieldCache.store.removeAll()
+        }
+        let fields = (try? VaultCrypto.shared.decodeFields(record.encryptedFields)) ?? []
+        fieldCache.store[record.id] = (record.updatedAt, fields)
+        return fields
     }
 }
 

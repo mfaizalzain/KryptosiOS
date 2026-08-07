@@ -149,7 +149,7 @@ struct VaultHeroCard: View {
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
 
-                LabelValue(label: template == .passport ? "Number" : "Identifier", value: fields.firstValue("Passport number", "ID number", "License number"))
+                LabelValue(label: template == .passport ? "Number" : "Identifier", value: maskIdentifier(fields.firstValue("Passport number", "ID number", "License number")))
                 LabelValue(label: "Name", value: fields.firstValue("Full name", "Surname", "Given names"))
                 if !compact {
                     HStack {
@@ -206,7 +206,7 @@ struct VaultHeroCard: View {
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
                 ForEach(fields.prefix(compact ? 2 : 5)) { field in
-                    LabelValue(label: field.name, value: field.value)
+                    LabelValue(label: field.name, value: displayValue(field))
                 }
                 Spacer(minLength: 0)
             }
@@ -309,6 +309,26 @@ struct VaultHeroCard: View {
     private func maskSecret(_ value: String) -> String {
         guard !value.isEmpty else { return "••••••••••••••••" }
         return String(repeating: "•", count: min(value.count, 18))
+    }
+
+    private func maskIdentifier(_ value: String) -> String {
+        let significant = value.filter { !$0.isWhitespace }
+        guard significant.count > 4 else { return maskSecret(value) }
+        return "•••• \(significant.suffix(4))"
+    }
+
+    /// Masks sensitive values in card previews so full financial and document
+    /// identifiers never appear on the home screen.
+    private func displayValue(_ field: VaultField) -> String {
+        if field.name.looksSecretFieldName {
+            return maskSecret(field.value)
+        }
+        if template == .paymentCard,
+           field.name.localizedCaseInsensitiveCompare("Number") == .orderedSame ||
+           field.name.lowercased().contains("card number") {
+            return maskCard(field.value)
+        }
+        return field.value
     }
 
     private func formattedExpiry(_ value: String) -> String {

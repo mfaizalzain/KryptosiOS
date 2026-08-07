@@ -14,11 +14,13 @@ struct EntryDetailView: View {
     @State private var fields: [VaultField] = []
     @State private var attachment: Data? = nil
     @State private var isLoading = true
+    @State private var decryptError: String? = nil
     @State private var toastMessage: String? = nil
     @State private var toastTask: Task<Void, Never>? = nil
 
     private func decryptRecord() {
         isLoading = true
+        decryptError = nil
         let encryptedFields = record.encryptedFields
         let encryptedAttachment = record.encryptedAttachment
         
@@ -40,6 +42,7 @@ struct EntryDetailView: View {
             } catch {
                 await MainActor.run {
                     self.isLoading = false
+                    self.decryptError = "This entry's data could not be decrypted. It may be corrupted or encrypted with a different key."
                 }
             }
         }
@@ -94,6 +97,12 @@ struct EntryDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(uiColor: .systemGroupedBackground))
+            } else if let decryptError {
+                ContentUnavailableView(
+                    "Unable to decrypt",
+                    systemImage: "exclamationmark.lock",
+                    description: Text(decryptError)
+                )
             } else {
                 List {
                     Section {

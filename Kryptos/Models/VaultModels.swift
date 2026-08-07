@@ -228,6 +228,9 @@ extension String {
 
     var looksSecretFieldName: Bool {
         let value = lowercased()
-        return ["password", "pin", "cvv", "cvc", "secret", "token", "key", "code", "ssn"].contains { value.contains($0) }
+        return [
+            "password", "pin", "cvv", "cvc", "secret", "token", "key", "code", "ssn",
+            "account number", "account no", "iban", "tax number", "tax id"
+        ].contains { value.contains($0) }
     }
 }

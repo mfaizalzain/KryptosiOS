@@ -7,9 +7,11 @@ import SwiftData
 final class DriveBackupService: ObservableObject {
     @Published var workingMessage: String?
     @Published var feedback: String?
+    @Published var restorePassphraseRequired = false
 
     private let backupName = "kryptos-ios-vault.json"
     private let keyName = "kryptos-ios.key"
+    private let backupPassphraseKey = "backup.passphrase.v1"
     private let myDriveFolderName = "KryptosBackups"
     private let lastAppDataBackupKey = "drive.lastAppDataBackupAt"
     private let lastMyDriveBackupKey = "drive.lastMyDriveBackupAt"
@@ -41,6 +43,27 @@ final class DriveBackupService: ObservableObject {
     }
 
     typealias TokenRefresher = @Sendable () async -> String?
+
+    // MARK: - Backup passphrase
+
+    var hasBackupPassphrase: Bool {
+        KeychainStore.shared.data(for: backupPassphraseKey) != nil
+    }
+
+    func setBackupPassphrase(_ passphrase: String) throws {
+        guard passphrase.count >= BackupKeyEnvelope.minimumPassphraseLength else {
+            throw KryptosSecurityError.weakPassphrase
+        }
+        try KeychainStore.shared.set(Data(passphrase.utf8), for: backupPassphraseKey)
+    }
+
+    func removeBackupPassphrase() {
+        KeychainStore.shared.remove(backupPassphraseKey)
+    }
+
+    private var backupPassphrase: String? {
+        KeychainStore.shared.data(for: backupPassphraseKey).flatMap { String(data: $0, encoding: .utf8) }
+    }
 
     func backup(records: [VaultEntryRecord], accessToken: String, toMyDrive: Bool = false, refresh: TokenRefresher? = nil) async {
         workingMessage = "Preparing encrypted backup..."
@@ -97,9 +120,10 @@ final class DriveBackupService: ObservableObject {
         workingMessage = nil
     }
 
-    func restoreFromICloud(modelContext: ModelContext, ownerId: String) async {
+    func restoreFromICloud(modelContext: ModelContext, ownerId: String, providedPassphrase: String? = nil) async {
         workingMessage = "Looking for iCloud backup..."
         feedback = nil
+        restorePassphraseRequired = false
         do {
             let recordID = CKRecord.ID(recordName: iCloudRecordName)
             guard let record = try await fetchICloudRecord(id: recordID) else {
@@ -113,18 +137,30 @@ final class DriveBackupService: ObservableObject {
                 return
             }
 
-            try VaultCrypto.shared.importKeyData(keyData)
+            let resolvedKey = try resolveBackupKey(keyData, providedPassphrase: providedPassphrase) ?? keyData
+            guard let payload = try? decoder.decode(BackupPayload.self, from: vaultData),
+                  validateBackupDecrypts(payload, keyData: resolvedKey) else {
+                feedback = BackupError.invalidBackup.errorDescription
+                workingMessage = nil
+                return
+            }
+
+            try VaultCrypto.shared.importKeyData(resolvedKey)
             try restorePayload(vaultData, modelContext: modelContext, ownerId: ownerId)
             feedback = "iCloud restore complete."
         } catch {
+            if case BackupError.backupPassphraseRequired = BackupError.from(error) {
+                restorePassphraseRequired = true
+            }
             feedback = BackupError.from(error).errorDescription
         }
         workingMessage = nil
     }
 
-    func restore(appDataToken: String?, myDriveToken: String?, modelContext: ModelContext, ownerId: String, refresh: TokenRefresher? = nil) async {
+    func restore(appDataToken: String?, myDriveToken: String?, modelContext: ModelContext, ownerId: String, refresh: TokenRefresher? = nil, providedPassphrase: String? = nil) async {
         workingMessage = "Looking for Drive backup..."
         feedback = nil
+        restorePassphraseRequired = false
         do {
             var candidates: [DriveBackupCandidate] = []
 
@@ -149,14 +185,21 @@ final class DriveBackupService: ObservableObject {
             }
 
             workingMessage = "Restoring from \(chosen.source.label)..."
-            if let keyData = chosen.keyData {
-                try VaultCrypto.shared.importKeyData(keyData)
+            let resolvedKey = try resolveBackupKey(chosen.keyData, providedPassphrase: providedPassphrase)
+            guard validateBackupDecrypts(chosen.payload, keyData: resolvedKey) else {
+                throw BackupError.invalidBackup
+            }
+            if let resolvedKey {
+                try VaultCrypto.shared.importKeyData(resolvedKey)
             }
             try restoreDecodedPayload(chosen.payload, modelContext: modelContext, ownerId: ownerId)
 
             let extra = candidates.count > 1 ? " (newer of \(candidates.count) found)" : ""
             feedback = "Restore complete from \(chosen.source.label)\(extra)."
         } catch {
+            if case BackupError.backupPassphraseRequired = BackupError.from(error) {
+                restorePassphraseRequired = true
+            }
             feedback = BackupError.from(error).errorDescription
         }
         workingMessage = nil
@@ -221,7 +264,14 @@ final class DriveBackupService: ObservableObject {
                 )
             }
         )
-        return (try encoder.encode(payload), try VaultCrypto.shared.exportKeyData())
+        let rawKey = try VaultCrypto.shared.exportKeyData()
+        let keyData: Data
+        if let passphrase = backupPassphrase {
+            keyData = try VaultCrypto.shared.wrapKeyData(rawKey, withPassphrase: passphrase)
+        } else {
+            keyData = rawKey
+        }
+        return (try encoder.encode(payload), keyData)
     }
 
     private func restorePayload(_ data: Data, modelContext: ModelContext, ownerId: String) throws {
@@ -230,21 +280,95 @@ final class DriveBackupService: ObservableObject {
     }
 
     private func restoreDecodedPayload(_ payload: BackupPayload, modelContext: ModelContext, ownerId: String) throws {
+        try validate(payload)
+
         let existing = try modelContext.fetch(FetchDescriptor<VaultEntryRecord>())
-        existing.forEach { modelContext.delete($0) }
-        payload.entries.forEach {
+        let restoredOwnerIds = Set(payload.entries.map { normalizedOwnerId($0.ownerId, fallback: ownerId) })
+        existing
+            .filter { restoredOwnerIds.contains($0.ownerId) }
+            .forEach { modelContext.delete($0) }
+
+        payload.entries.forEach { entry in
             modelContext.insert(VaultEntryRecord(
-                id: $0.id,
-                ownerId: $0.ownerId.isEmpty ? ownerId : $0.ownerId,
-                template: VaultTemplate(rawValue: $0.templateRaw) ?? .idCard,
-                title: $0.title,
-                encryptedFields: $0.encryptedFields,
-                encryptedAttachment: $0.encryptedAttachment,
-                createdAt: $0.createdAt,
-                updatedAt: $0.updatedAt
+                id: entry.id,
+                ownerId: normalizedOwnerId(entry.ownerId, fallback: ownerId),
+                template: VaultTemplate(rawValue: entry.templateRaw) ?? .idCard,
+                title: entry.title,
+                encryptedFields: entry.encryptedFields,
+                encryptedAttachment: entry.encryptedAttachment,
+                createdAt: entry.createdAt,
+                updatedAt: entry.updatedAt
             ))
         }
         try modelContext.save()
+    }
+
+    private func validate(_ payload: BackupPayload) throws {
+        guard payload.version == 1, !payload.entries.isEmpty else {
+            throw BackupError.invalidBackup
+        }
+
+        for entry in payload.entries {
+            do {
+                _ = try VaultCrypto.shared.decodeFields(entry.encryptedFields)
+                if let encryptedAttachment = entry.encryptedAttachment {
+                    _ = try VaultCrypto.shared.open(encryptedAttachment)
+                }
+            } catch {
+                throw BackupError.invalidBackup
+            }
+        }
+    }
+
+    /// Verifies every entry decrypts, using the backup key when present or the local key otherwise.
+    /// Must run before the backup key is imported so a bad backup never corrupts the local vault.
+    private func validateBackupDecrypts(_ payload: BackupPayload, keyData: Data?) -> Bool {
+        let crypto = VaultCrypto.shared
+        for entry in payload.entries {
+            let fieldsOK: Bool
+            if let keyData {
+                fieldsOK = crypto.canOpen(entry.encryptedFields, using: keyData)
+            } else {
+                fieldsOK = (try? crypto.decodeFields(entry.encryptedFields)) != nil
+            }
+            guard fieldsOK else { return false }
+
+            if let encryptedAttachment = entry.encryptedAttachment {
+                let attachmentOK: Bool
+                if let keyData {
+                    attachmentOK = crypto.canOpen(encryptedAttachment, using: keyData)
+                } else {
+                    attachmentOK = (try? crypto.open(encryptedAttachment)) != nil
+                }
+                guard attachmentOK else { return false }
+            }
+        }
+        return true
+    }
+
+    /// Unwraps a passphrase-protected backup key. Returns the raw key for legacy backups,
+    /// nil when no key file exists (falls back to the local key), and throws when a wrapped
+    /// key cannot be unlocked.
+    private func resolveBackupKey(_ storedKey: Data?, providedPassphrase: String?) throws -> Data? {
+        guard let storedKey else { return nil }
+        guard BackupKeyEnvelope.isWrapped(storedKey) else { return storedKey }
+
+        if let local = backupPassphrase,
+           let unwrapped = VaultCrypto.shared.unwrapKeyData(storedKey, withPassphrase: local) {
+            return unwrapped
+        }
+        if let provided = providedPassphrase, !provided.isEmpty,
+           let unwrapped = VaultCrypto.shared.unwrapKeyData(storedKey, withPassphrase: provided) {
+            return unwrapped
+        }
+        if providedPassphrase != nil {
+            throw BackupError.backupPassphraseIncorrect
+        }
+        throw BackupError.backupPassphraseRequired
+    }
+
+    private func normalizedOwnerId(_ ownerId: String, fallback: String) -> String {
+        ownerId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallback : ownerId
     }
 
     private func makeICloudAsset(data: Data, fileName: String) throws -> (asset: CKAsset, fileURL: URL) {

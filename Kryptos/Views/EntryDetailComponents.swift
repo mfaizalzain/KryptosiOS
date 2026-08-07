@@ -54,7 +54,7 @@ struct QRPayload: Identifiable {
     init(value: String, title: String) {
         self.value = value
         self.title = title
-        self.id = "\(title)-\(value.hashValue)"
+        self.id = UUID().uuidString
     }
 }
 
