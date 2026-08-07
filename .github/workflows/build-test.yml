@@ -1,0 +1,50 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        # GitHub's macos-15 image defaults to an older Xcode; pin the newest 26.x.
+        run: |
+          XCODE_APP="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)"
+          test -n "$XCODE_APP" || { echo "ERROR: no Xcode 26 found"; ls /Applications | grep -i xcode || true; exit 1; }
+          sudo xcode-select -s "$XCODE_APP"
+          xcodebuild -version
+
+      - name: Build (no signing)
+        run: |
+          xcodebuild build \
+            -project Kryptos.xcodeproj \
+            -scheme Kryptos \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests
+        run: |
+          xcodebuild test \
+            -project Kryptos.xcodeproj \
+            -scheme Kryptos \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -only-testing:KryptosTests
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
+          if-no-files-found: ignore
