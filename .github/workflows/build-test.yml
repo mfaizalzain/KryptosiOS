@@ -5,9 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
+    name: Build & Test (simulator)
     runs-on: macos-15
     timeout-minutes: 30
 
@@ -15,36 +21,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 26
-        # GitHub's macos-15 image defaults to an older Xcode; pin the newest 26.x.
-        run: |
-          XCODE_APP="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)"
-          test -n "$XCODE_APP" || { echo "ERROR: no Xcode 26 found"; ls /Applications | grep -i xcode || true; exit 1; }
-          sudo xcode-select -s "$XCODE_APP"
-          xcodebuild -version
+      - name: Show Xcode version
+        # Do NOT xcode-select a specific version: the runner image's simulator
+        # runtimes only match its default Xcode. (Same lesson as ioniq's
+        # ios-build.yml — forcing another Xcode breaks simulator availability.)
+        run: xcodebuild -version
 
-      - name: Build (no signing)
+      - name: Build app (simulator, no signing)
         run: |
-          xcodebuild build \
+          set -o pipefail
+          xcodebuild \
             -project Kryptos.xcodeproj \
             -scheme Kryptos \
             -configuration Debug \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build > /tmp/build.log 2>&1 || {
+              echo "===== BUILD FAILED ====="
+              grep -nE "error:|warning:" /tmp/build.log | head -80
+              echo "===== LAST 30 LINES ====="
+              tail -30 /tmp/build.log
+              exit 1
+            }
 
       - name: Run unit tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -project Kryptos.xcodeproj \
             -scheme Kryptos \
             -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
-            -only-testing:KryptosTests
-
-      - name: Upload test results on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcresult
-          path: |
-            ~/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
-          if-no-files-found: ignore
+            -only-testing:KryptosTests > /tmp/test.log 2>&1 || {
+              echo "===== TESTS FAILED ====="
+              grep -nE "error:|failed|Test Case.*failed" /tmp/test.log | head -60
+              echo "===== LAST 30 LINES ====="
+              tail -30 /tmp/test.log
+              exit 1
+            }
