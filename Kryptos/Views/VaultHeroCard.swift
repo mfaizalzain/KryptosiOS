@@ -1,4 +1,3 @@
-import CoreImage.CIFilterBuiltins
 import SwiftUI
 
 struct VaultHeroCard: View {
@@ -319,6 +318,7 @@ struct VaultHeroCard: View {
     }
 }
 
+
 private struct LabelValue: View {
     let label: String
     let value: String
@@ -352,31 +352,6 @@ final class ImageCache {
             return image
         }
         return nil
-    }
-}
-
-enum QRCode {
-    private static let cache = NSCache<NSString, UIImage>()
-
-    static func makeImage(from string: String) -> UIImage? {
-        guard !string.isEmpty else { return nil }
-        let cacheKey = string as NSString
-        if let cached = cache.object(forKey: cacheKey) {
-            return cached
-        }
-        
-        let context = CIContext()
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-        guard
-            let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
-            let cgImage = context.createCGImage(output, from: output.extent)
-        else { return nil }
-        
-        let image = UIImage(cgImage: cgImage)
-        cache.setObject(image, forKey: cacheKey)
-        return image
     }
 }
 
