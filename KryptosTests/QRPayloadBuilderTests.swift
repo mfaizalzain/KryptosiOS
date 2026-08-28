@@ -8,6 +8,7 @@
 import XCTest
 @testable import Kryptos
 
+@MainActor
 final class QRPayloadBuilderTests: XCTestCase {
 
     // MARK: - Helpers

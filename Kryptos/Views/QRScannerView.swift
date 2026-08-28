@@ -52,8 +52,11 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
         preview.frame = view.bounds
         view.layer.addSublayer(preview)
 
-        Task.detached { [session] in
-            session.startRunning()
+        // startRunning() blocks; run it on a dedicated capture queue so the
+        // main thread stays responsive (standard AVFoundation pattern).
+        let captureQueue = DispatchQueue(label: "com.fmz.kryptos.qr-capture", qos: .userInitiated)
+        captureQueue.async { [weak session] in
+            session?.startRunning()
         }
     }
 

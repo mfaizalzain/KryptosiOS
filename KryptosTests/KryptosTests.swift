@@ -16,6 +16,7 @@ private final class InMemoryKeychain: KeychainStoring {
     func remove(_ key: String) { store[key] = nil }
 }
 
+@MainActor
 final class KryptosTests: XCTestCase {
     private var crypto: VaultCrypto!
 

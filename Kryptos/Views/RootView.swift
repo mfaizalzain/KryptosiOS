@@ -30,8 +30,12 @@ struct RootView: View {
 private struct PrivacyRedactionView: View {
     var body: some View {
         ZStack {
-            BrandPalette.surfaceGradient
-                .ignoresSafeArea()
+            LinearGradient(
+                colors: [Theme.background, Color(red: 13/255, green: 19/255, blue: 38/255)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 14) {
                 Image(systemName: "lock.shield.fill")
@@ -57,26 +61,20 @@ struct LockView: View {
 
     var body: some View {
         ZStack {
-            // Elegant premium background gradient
+            // Deep space background
             LinearGradient(
                 colors: [
-                    Color(red: 10/255, green: 17/255, blue: 40/255),
-                    Color(red: 25/255, green: 34/255, blue: 64/255)
+                    Theme.background,
+                    Color(red: 13/255, green: 19/255, blue: 38/255)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            
-            // Ambient glowing light pattern
-            RadialGradient(
-                colors: [BrandPalette.primary.opacity(0.20), .clear],
-                center: .topLeading,
-                startRadius: 50,
-                endRadius: 400
-            )
-            .ignoresSafeArea()
-            
+
+            // Ambient aurora — slowly drifting glow
+            AuroraField()
+
             VStack(spacing: 28) {
                 Spacer()
 
@@ -87,7 +85,7 @@ struct LockView: View {
                         .scaledToFit()
                         .frame(width: 116, height: 116)
                         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                        .shadow(color: BrandPalette.primary.opacity(0.45), radius: 24, y: 12)
+                        .shadow(color: Theme.accent.opacity(0.5), radius: 28, y: 14)
 
                     VStack(spacing: 8) {
                         Text("Kryptos")
@@ -173,8 +171,9 @@ struct LockView: View {
                                 .font(.headline)
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity, minHeight: 54)
-                                .background(BrandPalette.primary)
+                                .background(Theme.accentGradient)
                                 .clipShape(Capsule())
+                                .shadow(color: Theme.accent.opacity(0.4), radius: 16, y: 7)
                         }
                         .buttonStyle(.plain)
                     }
@@ -203,6 +202,47 @@ struct LockView: View {
                 gate.unlock()
             }
         }
+    }
+}
+
+/// Slow-moving ambient glow behind the lock screen content.
+private struct AuroraField: View {
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = max(proxy.size.width, proxy.size.height)
+            ZStack {
+                // Accent glow, top-left
+                Circle()
+                    .fill(Theme.accent.opacity(0.22))
+                    .frame(width: size * 0.85)
+                    .blur(radius: 90)
+                    .offset(x: -size * 0.28 + phase * 30, y: -size * 0.38 + phase * 20)
+
+                // Secondary violet glow, bottom-right
+                Circle()
+                    .fill(Color(red: 0.45, green: 0.25, blue: 0.75).opacity(0.16))
+                    .frame(width: size * 0.9)
+                    .blur(radius: 110)
+                    .offset(x: size * 0.32 - phase * 25, y: size * 0.42 - phase * 15)
+
+                // Tiny cyan accent, mid
+                Circle()
+                    .fill(Color(red: 0.25, green: 0.85, blue: 0.9).opacity(0.08))
+                    .frame(width: size * 0.6)
+                    .blur(radius: 80)
+                    .offset(x: -phase * 20, y: phase * 10)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) {
+                    phase = 1
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

@@ -65,7 +65,8 @@ Kryptos/
 
 - **Xcode 26.6** (iOS 26.5 SDK) — macOS 15+ (do **not** archive from beta macOS; Apple rejects ITMS-90111)
 - **iOS deployment target:** 26.0
-- No external Swift Package dependencies — pure Apple frameworks.
+- **Swift 6 language mode** (`SWIFT_VERSION = 6.0`) with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and `SWIFT_APPROACHABLE_CONCURRENCY`
+- No external Swift Package dependencies — pure Apple frameworks (auto-updated with the SDK).
 
 ## 🚀 Getting started
 

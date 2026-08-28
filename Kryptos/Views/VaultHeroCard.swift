@@ -55,14 +55,65 @@ struct VaultHeroCard: View {
                     )
                     .blendMode(.overlay)
 
+                // Slow diagonal shine sweep across the card.
+                ShineSweep(cornerRadius: cornerRadius)
+
                 content
                     .padding(compact ? 14 : 20)
             }
 
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.white.opacity(compact ? 0.14 : 0.22), lineWidth: 1)
+
+            if template.supportsExpiryBadge, let expiry = expiryDate, !showsScannedPreview, shouldShowBadge(for: expiry) {
+                VStack {
+                    HStack {
+                        Spacer()
+                        expiryBadge(for: expiry)
+                            .padding(compact ? 10 : 12)
+                    }
+                    Spacer()
+                }
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
+    private var expiryDate: Date? {
+        ExpiryReminderService.shared.expiryDate(forFields: fields, template: template)
+    }
+
+    /// On compact cards only surface urgent states; the full card always shows the badge.
+    private func shouldShowBadge(for date: Date) -> Bool {
+        guard compact else { return true }
+        if date < .now { return true }
+        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
+        return days <= 30
+    }
+
+    private func expiryBadge(for date: Date) -> some View {
+        let expired = date < .now
+        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
+        let label: String
+        if expired {
+            label = "Expired"
+        } else if days <= 30 {
+            label = "Expires soon"
+        } else {
+            label = date.formatted(.dateTime.month(.abbreviated).year())
+        }
+        let tint = expired ? Theme.danger : (days <= 30 ? Theme.warning : Theme.success)
+        return HStack(spacing: 4) {
+            Image(systemName: expired ? "xmark.circle.fill" : (days <= 30 ? "exclamationmark.circle.fill" : "checkmark.circle.fill"))
+                .font(.system(size: 10, weight: .bold))
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.black.opacity(0.45), in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.15), lineWidth: 0.5))
     }
 
     private var cornerRadius: CGFloat {
@@ -115,28 +166,7 @@ struct VaultHeroCard: View {
     }
 
     private var background: LinearGradient {
-        switch template {
-        case .idCard:
-            LinearGradient(colors: [Color(red: 0.05, green: 0.20, blue: 0.50), Color(red: 0.00, green: 0.34, blue: 0.82)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .passport:
-            LinearGradient(colors: [Color(red: 0.06, green: 0.09, blue: 0.20), Color(red: 0.10, green: 0.22, blue: 0.46)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .driversLicense:
-            LinearGradient(colors: [Color(red: 0.04, green: 0.30, blue: 0.45), Color(red: 0.10, green: 0.55, blue: 0.65)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .birthCertificate:
-            LinearGradient(colors: [Color(red: 0.05, green: 0.34, blue: 0.30), Color(red: 0.12, green: 0.55, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .paymentCard:
-            LinearGradient(colors: [Color(red: 0.08, green: 0.08, blue: 0.14), Color(red: 0.18, green: 0.10, blue: 0.32), Color(red: 0.38, green: 0.12, blue: 0.42)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .bankAccount:
-            LinearGradient(colors: [Color(red: 0.05, green: 0.32, blue: 0.40), Color(red: 0.08, green: 0.46, blue: 0.50)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .taxNumber:
-            LinearGradient(colors: [Color(red: 0.42, green: 0.18, blue: 0.10), Color(red: 0.65, green: 0.32, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .apiKey:
-            LinearGradient(colors: [Color(red: 0.08, green: 0.10, blue: 0.16), Color(red: 0.22, green: 0.24, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .note:
-            LinearGradient(colors: [Color(red: 0.92, green: 0.74, blue: 0.18), Color(red: 0.98, green: 0.85, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .qrCode:
-            LinearGradient(colors: [Color(red: 0.08, green: 0.30, blue: 0.55), Color(red: 0.10, green: 0.55, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        }
+        template.heroGradient
     }
 
     private var identityCard: some View {
@@ -357,6 +387,44 @@ private struct LabelValue: View {
     }
 }
 
+/// A slow, subtle diagonal highlight that drifts across hero cards,
+/// giving premium cards a "living metal" feel.
+private struct ShineSweep: View {
+    let cornerRadius: CGFloat
+
+    @State private var offset: CGFloat = -1.4
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.0),
+                            .white.opacity(0.09),
+                            .white.opacity(0.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: width * 0.55)
+                .rotationEffect(.degrees(24))
+                .offset(x: offset * width, y: -height * 0.4)
+                .blendMode(.overlay)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: false)) {
+                        offset = 1.4
+                    }
+                }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 final class ImageCache {
     static let shared = ImageCache()
     private let cache = NSCache<NSData, UIImage>()
@@ -390,4 +458,39 @@ private extension VaultTemplate {
             false
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("Hero Card — Payment", traits: .sizeThatFitsLayout) {
+    VaultHeroCard(
+        template: .paymentCard,
+        title: "Platinum Rewards",
+        fields: [
+            VaultField(name: "Cardholder", value: "Faizal Zain"),
+            VaultField(name: "Number", value: "4539 1234 5678 9012"),
+            VaultField(name: "Expiry", value: "09/28")
+        ],
+        attachment: nil
+    )
+    .padding()
+    .background(Theme.background)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Hero Card — Passport", traits: .sizeThatFitsLayout) {
+    VaultHeroCard(
+        template: .passport,
+        title: "Faizal Zain",
+        fields: [
+            VaultField(name: "Passport number", value: "A12345678"),
+            VaultField(name: "Full name", value: "Faizal Zain"),
+            VaultField(name: "Date of birth", value: "1990-01-01"),
+            VaultField(name: "Expiry", value: "2031-04-12")
+        ],
+        attachment: nil
+    )
+    .padding()
+    .background(Theme.background)
+    .preferredColorScheme(.dark)
 }

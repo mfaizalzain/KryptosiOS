@@ -99,6 +99,58 @@ enum VaultTemplate: String, Codable, CaseIterable, Identifiable {
         case .qrCode: ["data"]
         }
     }
+
+    /// Accent tint used for icons, chips, and highlights of this template.
+    var accentColor: Color {
+        switch self {
+        case .idCard: Color(red: 122/255, green: 158/255, blue: 255/255)
+        case .passport: Color(red: 108/255, green: 150/255, blue: 255/255)
+        case .driversLicense: Color(red: 92/255, green: 200/255, blue: 205/255)
+        case .birthCertificate: Color(red: 96/255, green: 200/255, blue: 160/255)
+        case .paymentCard: Color(red: 190/255, green: 140/255, blue: 235/255)
+        case .bankAccount: Color(red: 90/255, green: 190/255, blue: 220/255)
+        case .taxNumber: Color(red: 255/255, green: 170/255, blue: 110/255)
+        case .apiKey: Color(red: 150/255, green: 165/255, blue: 190/255)
+        case .note: Color(red: 255/255, green: 210/255, blue: 90/255)
+        case .qrCode: Color(red: 110/255, green: 180/255, blue: 255/255)
+        }
+    }
+
+    /// The gradient drawn behind hero cards for this template.
+    var heroGradient: LinearGradient {
+        switch self {
+        case .idCard:
+            LinearGradient(colors: [Color(red: 0.05, green: 0.20, blue: 0.50), Color(red: 0.00, green: 0.34, blue: 0.82)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .passport:
+            LinearGradient(colors: [Color(red: 0.06, green: 0.09, blue: 0.20), Color(red: 0.10, green: 0.22, blue: 0.46)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .driversLicense:
+            LinearGradient(colors: [Color(red: 0.04, green: 0.30, blue: 0.45), Color(red: 0.10, green: 0.55, blue: 0.65)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .birthCertificate:
+            LinearGradient(colors: [Color(red: 0.05, green: 0.34, blue: 0.30), Color(red: 0.12, green: 0.55, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .paymentCard:
+            LinearGradient(colors: [Color(red: 0.08, green: 0.08, blue: 0.14), Color(red: 0.18, green: 0.10, blue: 0.32), Color(red: 0.38, green: 0.12, blue: 0.42)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .bankAccount:
+            LinearGradient(colors: [Color(red: 0.05, green: 0.32, blue: 0.40), Color(red: 0.08, green: 0.46, blue: 0.50)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .taxNumber:
+            LinearGradient(colors: [Color(red: 0.42, green: 0.18, blue: 0.10), Color(red: 0.65, green: 0.32, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .apiKey:
+            LinearGradient(colors: [Color(red: 0.08, green: 0.10, blue: 0.16), Color(red: 0.22, green: 0.24, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .note:
+            LinearGradient(colors: [Color(red: 0.92, green: 0.74, blue: 0.18), Color(red: 0.98, green: 0.85, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .qrCode:
+            LinearGradient(colors: [Color(red: 0.08, green: 0.30, blue: 0.55), Color(red: 0.10, green: 0.55, blue: 0.78)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    /// Whether this template's hero card should show an expiry badge.
+    var supportsExpiryBadge: Bool {
+        switch self {
+        case .idCard, .passport, .driversLicense, .paymentCard:
+            true
+        case .birthCertificate, .bankAccount, .taxNumber, .apiKey, .note, .qrCode:
+            false
+        }
+    }
 }
 
 struct VaultField: Codable, Hashable, Identifiable {
@@ -185,33 +237,13 @@ extension Array where Element == VaultField {
 }
 
 enum BrandPalette {
-    static let deepNavy = Color(red: 15/255, green: 23/255, blue: 48/255)
+    // Backwards-compatible aliases to the new design system.
+    static let deepNavy = Theme.background
     static let midnight = Color(red: 31/255, green: 42/255, blue: 74/255)
-    static let primary = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 123/255, green: 168/255, blue: 255/255, alpha: 1)
-            : UIColor(red: 0/255, green: 86/255, blue: 210/255, alpha: 1)
-    })
-
-    static let primaryGradient = LinearGradient(
-        colors: [
-            Color(UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 165/255, green: 198/255, blue: 255/255, alpha: 1)
-                    : UIColor(red: 123/255, green: 168/255, blue: 255/255, alpha: 1)
-            }),
-            Color(UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 92/255, green: 145/255, blue: 240/255, alpha: 1)
-                    : UIColor(red: 0/255, green: 86/255, blue: 210/255, alpha: 1)
-            })
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
+    static let primary = Theme.accent
+    static let primaryGradient = Theme.accentGradient
     static let surfaceGradient = LinearGradient(
-        colors: [deepNavy, midnight],
+        colors: [Theme.background, midnight],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

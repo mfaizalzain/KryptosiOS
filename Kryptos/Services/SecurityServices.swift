@@ -41,7 +41,7 @@ protocol KeychainStoring {
     nonisolated func remove(_ key: String)
 }
 
-nonisolated final class KeychainStore: KeychainStoring {
+nonisolated final class KeychainStore: KeychainStoring, @unchecked Sendable {
     static let shared = KeychainStore()
     private init() {}
 
@@ -92,7 +92,7 @@ nonisolated final class KeychainStore: KeychainStoring {
     }
 }
 
-nonisolated final class VaultCrypto {
+nonisolated final class VaultCrypto: @unchecked Sendable {
     static let shared = VaultCrypto()
     private let keychain: KeychainStoring
     private let keyName: String
