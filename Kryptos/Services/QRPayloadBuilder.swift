@@ -90,6 +90,30 @@ enum QRPayloadBuilder {
         }
     }
 
+    /// Builds the cross-platform Kryptos share envelope for an entry — the JSON
+    /// another Kryptos app scans to import it.
+    ///
+    /// Field names are user-editable and may repeat, so the field map is built
+    /// tolerantly: a uniquing-key initializer would trap on duplicates. When two
+    /// fields share a name the first non-empty value wins, matching how the
+    /// importer merges incoming fields by name.
+    static func shareEnvelope(template: VaultTemplate, title: String, fields: [VaultField]) -> String {
+        let fieldDict = Dictionary(fields.map { ($0.name, $0.value) }) { first, second in
+            first.isEmpty ? second : first
+        }
+        let envelope: [String: Any] = [
+            "kryptos": 1,
+            "template": template.rawValue,
+            "title": title,
+            "fields": fieldDict
+        ]
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys]),
+            let json = String(data: data, encoding: .utf8)
+        else { return "" }
+        return json
+    }
+
     static func selectedType(from fields: [VaultField]) -> QRPayloadType {
         let raw = fields.value(typeField)
         guard !raw.isEmpty else { return .text }

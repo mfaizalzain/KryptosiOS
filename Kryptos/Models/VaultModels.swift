@@ -236,20 +236,64 @@ extension Array where Element == VaultField {
     }
 }
 
-enum BrandPalette {
-    // Backwards-compatible aliases to the new design system.
-    static let deepNavy = Theme.background
-    static let midnight = Color(red: 31/255, green: 42/255, blue: 74/255)
-    static let primary = Theme.accent
-    static let primaryGradient = Theme.accentGradient
-    static let surfaceGradient = LinearGradient(
-        colors: [Theme.background, midnight],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+/// The single source of truth for how an expiry date is described and tinted.
+/// Rows, hero cards, and detail screens all render from this so they can never
+/// disagree about what "expiring soon" means.
+enum ExpiryStatus {
+    case expired
+    case soon(days: Int)
+    case valid(Date)
+
+    /// `nil` when there is no date to describe.
+    init?(date: Date?, referenceDate: Date = .now) {
+        guard let date else { return nil }
+        if date < referenceDate {
+            self = .expired
+            return
+        }
+        let days = Calendar.current.dateComponents([.day], from: referenceDate, to: date).day ?? 0
+        self = days <= 30 ? .soon(days: days) : .valid(date)
+    }
+
+    var label: String {
+        switch self {
+        case .expired: "Expired"
+        case .soon: "Expires soon"
+        case .valid(let date): date.formatted(.dateTime.month(.abbreviated).year())
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .expired: Theme.danger
+        case .soon: Theme.warning
+        case .valid: Theme.success
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .expired: "xmark.circle.fill"
+        case .soon: "exclamationmark.circle.fill"
+        case .valid: "checkmark.circle.fill"
+        }
+    }
+
+    /// Compact hero cards only have room for a badge when it's actually urgent.
+    var isUrgent: Bool {
+        switch self {
+        case .expired, .soon: true
+        case .valid: false
+        }
+    }
 }
 
 extension String {
+    /// The receiver, or `fallback` when it is empty or only whitespace.
+    func ifBlank(_ fallback: String) -> String {
+        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallback : self
+    }
+
     var normalizedIdentifier: String {
         String(lowercased().filter { $0.isLetter || $0.isNumber })
     }

@@ -40,7 +40,9 @@ struct AccountSettingsView: View {
                 aboutSection
                 dangerSection
             }
+            .vaultFormChrome()
             .navigationTitle("Settings")
+            .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 Button("Done") { dismiss() }
             }
@@ -88,7 +90,7 @@ struct AccountSettingsView: View {
                 Label("Backup passphrase is set", systemImage: "checkmark.shield")
                 Text("Your vault key is wrapped with this passphrase before it's uploaded. The passphrase is never sent to iCloud or Google Drive.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 Button("Change passphrase") {
                     passphraseDraft = ""
                     passphraseConfirm = ""
@@ -101,7 +103,7 @@ struct AccountSettingsView: View {
             } else {
                 Text("Backups currently upload the raw encryption key beside your data. Anyone with access to the backup file could decrypt it.")
                     .font(.footnote)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.warning)
                 Button {
                     passphraseDraft = ""
                     passphraseConfirm = ""
@@ -131,17 +133,19 @@ struct AccountSettingsView: View {
                     Section {
                         Text(passphraseError)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.danger)
                     }
                 }
                 Section {
                     Text("You'll need this passphrase to restore your backup on a new device. Kryptos never stores it online, so there is no way to recover it if you forget it.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
+            .vaultFormChrome()
             .navigationTitle(backup.hasBackupPassphrase ? "Change Passphrase" : "Set Passphrase")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -166,6 +170,7 @@ struct AccountSettingsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Theme.background)
     }
 
     private var restorePassphrasePrompt: some View {
@@ -176,11 +181,13 @@ struct AccountSettingsView: View {
                         .textContentType(.password)
                     Text("This backup is protected by a passphrase. Enter it to restore. The passphrase is only used on this device and is not sent anywhere.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
+            .vaultFormChrome()
             .navigationTitle("Restore Passphrase")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -211,6 +218,7 @@ struct AccountSettingsView: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationBackground(Theme.background)
     }
 
     private func resetPassphraseSheet() {
@@ -229,7 +237,7 @@ struct AccountSettingsView: View {
                     } placeholder: {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.largeTitle)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                     .frame(width: 64, height: 64)
                     .clipShape(Circle())
@@ -239,11 +247,11 @@ struct AccountSettingsView: View {
                             .font(.headline)
                         Text("Signed in with \(account.provider.label)")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         if let email = account.email {
                             Text(email)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                     }
                 }
@@ -274,10 +282,10 @@ struct AccountSettingsView: View {
         Section("Pro Version") {
             if billing.isPremium {
                 Label("Pro version unlocked. Thank you for your support.", systemImage: "crown.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.warning)
             } else {
                 Text("Upgrade to Pro to remove the \(BillingService.freeEntryLimit) entry limit and support future development.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 Button {
                     Task { await billing.purchasePremium() }
                 } label: {
@@ -294,7 +302,7 @@ struct AccountSettingsView: View {
             if let message = billing.message {
                 Text(message)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -302,7 +310,7 @@ struct AccountSettingsView: View {
     private var backupSection: some View {
         Section {
             Text(backupDescription)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
 
             Text(backup.lastICloudBackupAt.map { "Last iCloud backup: \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "No iCloud backup yet.")
                 .font(.footnote)
@@ -342,13 +350,13 @@ struct AccountSettingsView: View {
             if let working = backup.workingMessage {
                 Label(working, systemImage: "hourglass")
                     .font(.footnote)
-                    .foregroundStyle(BrandPalette.primary)
+                    .foregroundStyle(Theme.accent)
             }
 
             if let feedback = backup.feedback {
                 Text(feedback)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
         } header: {
             Text("Cloud Backup")
@@ -406,12 +414,12 @@ struct AccountSettingsView: View {
 
             Text("Sends a local notification 30, 7, and 1 day before expiry for any entry that has an Expiry field, regardless of type.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
 
             if reminders.isEnabled, reminders.authorizationStatus == .denied {
                 Label("Notifications are turned off for Kryptos in iOS Settings. Enable them to receive expiry reminders.", systemImage: "exclamationmark.triangle")
                     .font(.footnote)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.warning)
             }
         } header: {
             Text("Reminders")
@@ -432,7 +440,7 @@ struct AccountSettingsView: View {
     private var dangerSection: some View {
         Section {
             Text("Permanently deletes your Kryptos account and every vault entry, encryption key, and reminder stored on this device. You will be signed out. This cannot be undone.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
 
             Button(role: .destructive) {
                 confirmingDeleteAll = true

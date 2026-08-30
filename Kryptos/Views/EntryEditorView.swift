@@ -19,6 +19,7 @@ struct EntryEditorView: View {
     @State private var saveError: String?
     @State private var didApplyInitialQR = false
     @State private var isLoading = false
+    @FocusState private var focusedFieldID: UUID?
 
     init(record: VaultEntryRecord?, ownerId: String, initialQRPayload: String? = nil) {
         self.record = record
@@ -47,10 +48,10 @@ struct EntryEditorView: View {
                             Spacer()
                             VStack(spacing: 12) {
                                 ProgressView()
-                                    .tint(BrandPalette.primary)
-                                Text("Decrypting securely...")
+                                    .tint(Theme.accent)
+                                Text("Decrypting securely…")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Theme.textSecondary)
                             }
                             Spacer()
                         }
@@ -60,6 +61,12 @@ struct EntryEditorView: View {
                     Section {
                         TextField("Title", text: $title)
                             .textInputAutocapitalization(.words)
+                    } footer: {
+                        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Label("A title is required before you can save.", systemImage: "info.circle")
+                                .font(.footnote)
+                                .foregroundStyle(Theme.textTertiary)
+                        }
                     }
 
                     Section("Type") {
@@ -113,14 +120,19 @@ struct EntryEditorView: View {
 
                     Section {
                         ForEach($fields) { $field in
-                            FieldEditorRow(template: template, field: $field, isDefault: template.defaultFields.contains { $0.localizedCaseInsensitiveCompare(field.name) == .orderedSame })
+                            FieldEditorRow(
+                                template: template,
+                                field: $field,
+                                isDefault: template.defaultFields.contains { $0.localizedCaseInsensitiveCompare(field.name) == .orderedSame },
+                                nameFieldFocus: $focusedFieldID
+                            )
                         }
                         .onDelete { indexSet in
                             fields.remove(atOffsets: indexSet)
                         }
 
                         Button {
-                            fields.append(VaultField(name: "Field", value: ""))
+                            addCustomField()
                         } label: {
                             Label("Add field", systemImage: "plus")
                         }
@@ -146,8 +158,10 @@ struct EntryEditorView: View {
                     }
                 }
             }
+            .vaultFormChrome()
             .navigationTitle(record == nil ? "New entry" : "Edit entry")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -230,7 +244,7 @@ struct EntryEditorView: View {
                 Text("We'll remind you 30, 7, and 1 day before \(expiry.formatted(date: .abbreviated, time: .omitted)).")
             } icon: {
                 Image(systemName: "bell.badge")
-                    .foregroundStyle(BrandPalette.primary)
+                    .foregroundStyle(Theme.accent)
             }
         } else {
             Text("Add an \"Expiry\" field with a date (e.g. 12/2028 or 2028-12-31) and Kryptos will remind you 30, 7, and 1 day before it expires.")
@@ -368,6 +382,22 @@ struct EntryEditorView: View {
         } else {
             mergeField(name: template == .qrCode ? "Data" : "Scanned text", value: value)
         }
+    }
+
+    /// Appends a custom field with a name that is unique within the entry.
+    /// Duplicated names used to collide when the entry was shared as a QR
+    /// envelope, and gave the user two identical-looking rows to edit.
+    private func addCustomField() {
+        let base = "Custom field"
+        var candidate = base
+        var suffix = 2
+        while fields.contains(where: { $0.name.localizedCaseInsensitiveCompare(candidate) == .orderedSame }) {
+            candidate = "\(base) \(suffix)"
+            suffix += 1
+        }
+        let field = VaultField(name: candidate, value: "")
+        fields.append(field)
+        focusedFieldID = field.id
     }
 
     private func mergeField(name: String, value: String) {

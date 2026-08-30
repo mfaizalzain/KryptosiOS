@@ -17,17 +17,23 @@ struct VaultListView: View {
     @State private var showingSettings = false
     @State private var showingQRScanner = false
     @State private var importedQRPayload: String?
+    @State private var pendingDelete: VaultEntryRecord?
     @State private var fieldCache = DecryptedFieldCache()
 
     private var ownerId: String { auth.account?.id ?? "local" }
     private var records: [VaultEntryRecord] { allRecords.filter { $0.ownerId == ownerId } }
     private var reachedLimit: Bool { !billing.isPremium && records.count >= BillingService.freeEntryLimit }
 
+    /// True when the user has narrowed the vault with either the search field
+    /// or a category chip.
+    private var isFiltering: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedTemplate != nil
+    }
+
     var body: some View {
         NavigationStack {
             content
         }
-        .vaultBackground()
         .task { await ExpiryReminderService.shared.sync(records: records) }
         .onChange(of: records.map(\.updatedAt)) { _, _ in
             Task { await ExpiryReminderService.shared.sync(records: records) }
@@ -36,41 +42,34 @@ struct VaultListView: View {
 
     @ViewBuilder
     private var content: some View {
-        Group {
-            if records.isEmpty {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: Theme.space6) {
-                        header
-                        emptyState
-                    }
-                    .padding(.horizontal, Theme.space4)
-                    .padding(.top, Theme.space3)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Theme.space6) {
+                header
+
+                if records.isEmpty {
+                    emptyState
+                } else if filteredGroups.isEmpty {
+                    noResultsState
+                } else {
+                    featuredSection
+                    categorySections
                 }
-                .scrollIndicators(.hidden)
-            } else if filteredGroups.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-                    .background(Theme.backgroundGradient.ignoresSafeArea())
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: Theme.space6) {
-                        header
-                        featuredSection
-                        categorySections
-                    }
-                    .padding(.horizontal, Theme.space4)
-                    .padding(.top, Theme.space3)
-                    .padding(.bottom, 120)
-                }
-                .scrollIndicators(.hidden)
             }
+            .padding(.horizontal, Theme.space4)
+            .padding(.top, Theme.space3)
+            .padding(.bottom, records.isEmpty ? Theme.space6 : 120)
         }
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .vaultBackground()
         .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .bottom) { floatingAddButton }
+        .safeAreaInset(edge: .bottom) { floatingActionBar }
         .navigationDestination(for: UUID.self) { id in
             if let record = allRecords.first(where: { $0.id == id }) {
                 EntryDetailView(record: record)
             } else {
                 ContentUnavailableView("Entry not found", systemImage: "questionmark.folder")
+                    .vaultBackground()
             }
         }
         .sheet(isPresented: $showingEditor) {
@@ -97,6 +96,19 @@ struct VaultListView: View {
         .sheet(item: Binding(get: { importedQRPayload.map { ImportedPayload(value: $0) } }, set: { if $0 == nil { importedQRPayload = nil } })) { payload in
             EntryEditorView(record: nil, ownerId: ownerId, initialQRPayload: payload.value)
         }
+        .confirmationDialog(
+            "Delete this entry?",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let pendingDelete { delete(pendingDelete) }
+                pendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        } message: {
+            Text("This permanently removes \(pendingDelete?.title.ifBlank("this entry") ?? "this entry") from your vault.")
+        }
     }
 
     // MARK: - Header
@@ -114,6 +126,7 @@ struct VaultListView: View {
                         RoundedRectangle(cornerRadius: 11, style: .continuous)
                             .stroke(Theme.stroke, lineWidth: 1)
                     )
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Kryptos")
@@ -123,6 +136,7 @@ struct VaultListView: View {
                         .font(Theme.caption)
                         .foregroundStyle(Theme.textTertiary)
                 }
+                .accessibilityElement(children: .combine)
 
                 Spacer()
 
@@ -145,47 +159,57 @@ struct VaultListView: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
                 }
+                .buttonStyle(PressableButtonStyle(amount: 0.92))
+                .frame(minWidth: 44, minHeight: 44)
                 .accessibilityLabel("Account settings")
             }
 
             Text("My Vault")
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.textPrimary)
+                .accessibilityAddTraits(.isHeader)
 
-            // Search pill
-            HStack(spacing: Theme.space3) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(searchText.isEmpty ? Theme.textTertiary : Theme.accent)
-                TextField("Search your vault", text: $searchText)
-                    .font(Theme.body)
-                    .foregroundStyle(Theme.textPrimary)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(Theme.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
+            searchField
+
+            if !records.isEmpty {
+                filterChips
             }
-            .padding(.horizontal, Theme.space4)
-            .frame(height: 46)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusMedium, style: .continuous)
-                    .fill(Theme.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radiusMedium, style: .continuous)
-                    .stroke(searchText.isEmpty ? Theme.stroke : Theme.accent.opacity(0.5), lineWidth: 1)
-            )
-
-            filterChips
         }
         .padding(.top, Theme.space2)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: Theme.space3) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(searchText.isEmpty ? Theme.textTertiary : Theme.accent)
+            TextField("Search your vault", text: $searchText)
+                .font(Theme.body)
+                .foregroundStyle(Theme.textPrimary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, Theme.space4)
+        .frame(height: Theme.controlHeightCompact)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radiusMedium, style: .continuous)
+                .fill(Theme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radiusMedium, style: .continuous)
+                .stroke(searchText.isEmpty ? Theme.stroke : Theme.accent.opacity(0.5), lineWidth: 1)
+        )
     }
 
     // MARK: - Category filter chips
@@ -199,7 +223,7 @@ struct VaultListView: View {
                     selected: selectedTemplate == nil,
                     tint: Theme.accent
                 ) {
-                    withAnimation(.snappy(duration: 0.25)) { selectedTemplate = nil }
+                    withAnimation(Theme.snappy) { selectedTemplate = nil }
                 }
 
                 ForEach(VaultTemplate.allCases) { template in
@@ -211,7 +235,11 @@ struct VaultListView: View {
                             selected: selectedTemplate == template,
                             tint: template.accentColor
                         ) {
-                            withAnimation(.snappy(duration: 0.25)) { selectedTemplate = template }
+                            withAnimation(Theme.snappy) {
+                                // Tapping the active chip clears it, so the
+                                // filter is never a one-way door.
+                                selectedTemplate = selectedTemplate == template ? nil : template
+                            }
                         }
                     }
                 }
@@ -221,48 +249,60 @@ struct VaultListView: View {
         .scrollIndicators(.hidden)
     }
 
-    // MARK: - Featured carousel (recent + expiring soon)
+    // MARK: - Featured carousel
 
     @ViewBuilder
     private var featuredSection: some View {
-        if selectedTemplate == nil && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !isFiltering {
             let featured = featuredRecords
             if !featured.isEmpty {
                 VStack(alignment: .leading, spacing: Theme.space3) {
-                    HStack {
-                        Text("Featured")
-                            .font(Theme.headline)
-                            .foregroundStyle(Theme.textPrimary)
-                        Spacer()
-                    }
+                    VaultSectionHeader(
+                        title: hasExpiringSoon ? "Needs attention" : "Recently added",
+                        subtitle: hasExpiringSoon ? "Expiring within 90 days" : nil,
+                        symbol: hasExpiringSoon ? "exclamationmark.circle" : "clock.arrow.circlepath",
+                        tint: hasExpiringSoon ? Theme.warning : Theme.accent
+                    )
                     FeaturedCarousel(records: featured)
                 }
             }
         }
     }
 
-    /// The most recent entry plus anything expiring within 90 days (capped to 5).
+    private var hasExpiringSoon: Bool {
+        !expiringSoonRecords.isEmpty
+    }
+
+    /// Entries with an expiry date inside the next 90 days (already-expired
+    /// entries included, since those need attention most).
+    private var expiringSoonRecords: [VaultEntryRecord] {
+        let now = Date()
+        guard let soon = Calendar.current.date(byAdding: .day, value: 90, to: now) else { return [] }
+        return records.filter { record in
+            guard let expiry = expiryDate(for: record) else { return false }
+            return expiry < soon
+        }
+    }
+
+    /// Anything expiring soon, topped up with the most recently updated entries
+    /// so the carousel is never empty when the vault has content.
     private var featuredRecords: [VaultEntryRecord] {
         var seen = Set<UUID>()
         var featured: [VaultEntryRecord] = []
-        let now = Date()
-        let soon = Calendar.current.date(byAdding: .day, value: 90, to: now) ?? now
 
+        for record in expiringSoonRecords where seen.insert(record.id).inserted {
+            featured.append(record)
+            if featured.count >= 5 { return featured }
+        }
         for record in records where seen.insert(record.id).inserted {
-            if let expiry = expiryDate(for: record), expiry < soon {
-                featured.append(record)
-            }
+            featured.append(record)
             if featured.count >= 5 { break }
         }
-        if let newest = records.first, !seen.contains(newest.id) {
-            featured.append(newest)
-        }
-        return Array(featured.prefix(5))
+        return featured
     }
 
     private func expiryDate(for record: VaultEntryRecord) -> Date? {
-        let fields = decryptedFields(for: record)
-        return ExpiryReminderService.shared.expiryDate(forFields: fields, template: record.template)
+        ExpiryReminderService.shared.expiryDate(forFields: decryptedFields(for: record), template: record.template)
     }
 
     // MARK: - Category sections
@@ -272,13 +312,30 @@ struct VaultListView: View {
         return VStack(alignment: .leading, spacing: Theme.space6) {
             ForEach(groups, id: \.template) { group in
                 VStack(alignment: .leading, spacing: Theme.space3) {
-                    CategoryHeader(template: group.template, count: group.records.count)
+                    VaultSectionHeader(
+                        title: group.template.pluralTitle,
+                        subtitle: "\(group.records.count) \(group.records.count == 1 ? "entry" : "entries")",
+                        symbol: group.template.symbol,
+                        tint: group.template.accentColor
+                    )
                     VStack(spacing: Theme.space3) {
                         ForEach(group.records) { record in
                             NavigationLink(value: record.id) {
                                 EntryRowCard(record: record, fields: decryptedFields(for: record))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressableButtonStyle(amount: 0.985))
+                            .contextMenu {
+                                Button {
+                                    copyPrimaryValue(of: record)
+                                } label: {
+                                    Label("Copy main value", systemImage: "doc.on.doc")
+                                }
+                                Button(role: .destructive) {
+                                    pendingDelete = record
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
@@ -286,7 +343,7 @@ struct VaultListView: View {
         }
     }
 
-    // MARK: - Empty state
+    // MARK: - Empty & no-result states
 
     private var emptyState: some View {
         VStack(spacing: Theme.space5) {
@@ -298,6 +355,7 @@ struct VaultListView: View {
                     .font(.system(size: 52))
                     .foregroundStyle(Theme.accentGradient)
             }
+            .accessibilityHidden(true)
 
             VStack(spacing: Theme.space2) {
                 Text("Your vault is empty")
@@ -311,81 +369,155 @@ struct VaultListView: View {
 
             VStack(spacing: Theme.space3) {
                 Button {
-                    if reachedLimit {
-                        showingSettings = true
-                    } else {
-                        showingEditor = true
-                    }
+                    startNewEntry()
                 } label: {
                     Label("Add an entry", systemImage: "plus")
-                        .font(Theme.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background(Theme.accentGradient, in: Capsule())
-                        .shadow(color: Theme.accent.opacity(0.35), radius: 14, y: 6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PrimaryButtonStyle())
 
                 Button {
                     showingQRScanner = true
                 } label: {
                     Label("Scan a QR code", systemImage: "qrcode.viewfinder")
-                        .font(Theme.headline)
-                        .foregroundStyle(Theme.textPrimary)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background(Theme.surface, in: Capsule())
-                        .overlay(Capsule().stroke(Theme.stroke, lineWidth: 1))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SecondaryButtonStyle())
             }
             .padding(.horizontal, Theme.space6)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Theme.space6)
-        .padding(.top, 120)
+        .padding(.top, 80)
     }
 
-    // MARK: - Floating add button
+    /// Shown in place of the sections when a filter matches nothing. The header
+    /// stays on screen above it, so search and chips remain reachable.
+    private var noResultsState: some View {
+        VaultCard(padding: Theme.space6) {
+            VStack(spacing: Theme.space4) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .accessibilityHidden(true)
 
-    private var floatingAddButton: some View {
-        HStack {
-            Spacer()
-            Button {
-                if reachedLimit {
-                    showingSettings = true
-                } else {
-                    showingEditor = true
+                VStack(spacing: Theme.space2) {
+                    Text("No matches")
+                        .font(Theme.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(noResultsDescription)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
                 }
+
+                Button {
+                    withAnimation(Theme.snappy) {
+                        searchText = ""
+                        selectedTemplate = nil
+                    }
+                } label: {
+                    Label("Clear filters", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(SecondaryButtonStyle())
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var noResultsDescription: String {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let selectedTemplate, !query.isEmpty {
+            return "Nothing in \(selectedTemplate.pluralTitle) matches “\(query)”."
+        }
+        if let selectedTemplate {
+            return "Nothing in \(selectedTemplate.pluralTitle) yet."
+        }
+        return "Nothing in your vault matches “\(query)”."
+    }
+
+    // MARK: - Floating action bar
+
+    private var floatingActionBar: some View {
+        HStack(spacing: Theme.space3) {
+            Spacer()
+
+            // The scanner used to be reachable only from the empty state; once
+            // the vault had a single entry it disappeared entirely.
+            Button {
+                showingQRScanner = true
+            } label: {
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(Theme.surface))
+                    .overlay(Circle().stroke(Theme.stroke, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.3), radius: 12, y: 5)
+            }
+            .buttonStyle(PressableButtonStyle(amount: 0.94))
+            .accessibilityLabel("Scan a QR code")
+
+            Button {
+                startNewEntry()
             } label: {
                 Label(reachedLimit ? "Unlock Pro" : "Add Entry", systemImage: reachedLimit ? "crown.fill" : "plus")
                     .font(Theme.headline)
                     .foregroundStyle(.white)
                     .padding(.horizontal, Theme.space5)
                     .frame(height: 56)
-                    .background(
-                        Capsule().fill(Theme.accentGradient)
-                    )
+                    .background(Capsule().fill(Theme.accentGradient))
                     .shadow(color: Theme.accent.opacity(0.4), radius: 16, y: 7)
             }
-            .buttonStyle(PressableButtonStyle())
-            .padding(.trailing, Theme.space5)
-            .padding(.bottom, Theme.space3)
+            .buttonStyle(PressableButtonStyle(amount: 0.96))
+            .accessibilityHint(reachedLimit ? "Free vaults are limited to \(BillingService.freeEntryLimit) entries" : "")
         }
-        .background(.clear)
+        .padding(.trailing, Theme.space5)
+        .padding(.bottom, Theme.space3)
+        .padding(.top, Theme.space6)
+        .background(
+            LinearGradient(
+                colors: [Theme.background.opacity(0), Theme.background.opacity(0.85), Theme.background],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        )
+    }
+
+    // MARK: - Actions
+
+    private func startNewEntry() {
+        if reachedLimit {
+            showingSettings = true
+        } else {
+            showingEditor = true
+        }
+    }
+
+    private func delete(_ record: VaultEntryRecord) {
+        let id = record.id
+        fieldCache.store[id] = nil
+        modelContext.delete(record)
+        try? modelContext.save()
+        ExpiryReminderService.shared.cancelReminders(for: id)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    /// Copies the most useful field of an entry — the one its hero card leads
+    /// with — without making the user open it first.
+    private func copyPrimaryValue(of record: VaultEntryRecord) {
+        let fields = decryptedFields(for: record)
+        guard let field = fields.first(where: { !$0.value.isEmpty }) else { return }
+        SecureClipboard.copy(value: field.value)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: - Derived data
 
     private var filteredGroups: [(template: VaultTemplate, records: [VaultEntryRecord])] {
         let filtered = records.filter(matchesSearch)
-        if let selectedTemplate {
-            return VaultTemplate.allCases.compactMap { template in
-                guard template == selectedTemplate else { return nil }
-                let items = filtered.filter { $0.template == template }
-                return items.isEmpty ? nil : (template, items)
-            }
-        }
         return VaultTemplate.allCases.compactMap { template in
+            if let selectedTemplate, template != selectedTemplate { return nil }
             let items = filtered.filter { $0.template == template }
             return items.isEmpty ? nil : (template, items)
         }
@@ -443,7 +575,7 @@ private struct FilterChip: View {
                 Capsule().stroke(selected ? .clear : Theme.stroke, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle(amount: 0.94))
         .accessibilityLabel("\(title), \(count) items")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
@@ -465,7 +597,7 @@ private struct FeaturedCarousel: View {
                                 HeroCardTile(record: record)
                                     .frame(width: cardWidth(in: proxy.size.width))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressableButtonStyle(amount: 0.98))
                         }
                     }
                     .scrollTargetLayout()
@@ -517,7 +649,8 @@ private struct CarouselIndicator: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .accessibilityLabel("\(currentIndex + 1) of \(count)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Card \(currentIndex + 1) of \(count)")
     }
 }
 
@@ -532,42 +665,18 @@ private struct HeroCardTile: View {
     }
 }
 
-// MARK: - Category header
-
-private struct CategoryHeader: View {
-    let template: VaultTemplate
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: Theme.space3) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Theme.radiusSmall, style: .continuous)
-                    .fill(template.accentColor.opacity(0.14))
-                Image(systemName: template.symbol)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(template.accentColor)
-            }
-            .frame(width: 32, height: 32)
-
-            Text(template.pluralTitle)
-                .font(Theme.headline)
-                .foregroundStyle(Theme.textPrimary)
-            Spacer()
-            Text("\(count)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 3)
-                .background(Theme.textTertiary.opacity(0.14), in: Capsule())
-        }
-    }
-}
-
 // MARK: - Vertical entry row card
 
 private struct EntryRowCard: View {
     let record: VaultEntryRecord
     let fields: [VaultField]
+
+    /// Resolved once so the label and its tint can't disagree, and the date
+    /// parser runs a single time per row.
+    private var expiry: Date? {
+        guard record.template.supportsExpiryBadge else { return nil }
+        return ExpiryReminderService.shared.expiryDate(forFields: fields, template: record.template)
+    }
 
     var body: some View {
         HStack(spacing: Theme.space3) {
@@ -579,9 +688,10 @@ private struct EntryRowCard: View {
                     .foregroundStyle(record.template.accentColor)
             }
             .frame(width: 46, height: 46)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(record.title.isEmpty ? record.template.title : record.title)
+                Text(record.title.ifBlank(record.template.title))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
@@ -590,13 +700,13 @@ private struct EntryRowCard: View {
                     Text(record.template.title)
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
-                    if let expiry = expiryBadgeText {
+                    if let expiry, let status = ExpiryStatus(date: expiry) {
                         Circle()
-                            .fill(badgeColor)
+                            .fill(status.tint)
                             .frame(width: 4, height: 4)
-                        Text(expiry)
+                        Text(status.label)
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(badgeColor)
+                            .foregroundStyle(status.tint)
                     }
                 }
                 .lineLimit(1)
@@ -607,6 +717,7 @@ private struct EntryRowCard: View {
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.textTertiary.opacity(0.6))
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, Theme.space4)
         .padding(.vertical, Theme.space3)
@@ -618,34 +729,7 @@ private struct EntryRowCard: View {
             RoundedRectangle(cornerRadius: Theme.radiusMedium, style: .continuous)
                 .stroke(Theme.stroke, lineWidth: 1)
         )
-    }
-
-    private var expiryBadgeText: String? {
-        guard record.template.supportsExpiryBadge,
-              let date = ExpiryReminderService.shared.expiryDate(forFields: fields, template: record.template)
-        else { return nil }
-        if date < .now { return "Expired" }
-        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
-        if days <= 30 { return "Expires soon" }
-        return date.formatted(.dateTime.month(.abbreviated).year())
-    }
-
-    private var badgeColor: Color {
-        guard let date = ExpiryReminderService.shared.expiryDate(forFields: fields, template: record.template) else { return .clear }
-        if date < .now { return Theme.danger }
-        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
-        return days <= 30 ? Theme.warning : Theme.success
-    }
-}
-
-// MARK: - Pressable button style
-
-private struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .opacity(configuration.isPressed ? 0.9 : 1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+        .accessibilityElement(children: .combine)
     }
 }
 

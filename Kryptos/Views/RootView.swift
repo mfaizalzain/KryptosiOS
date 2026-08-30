@@ -18,7 +18,7 @@ struct RootView: View {
                         .environmentObject(gate)
                 }
             }
-            .tint(BrandPalette.primary)
+            .tint(Theme.accent)
 
             if scenePhase != .active {
                 PrivacyRedactionView()
@@ -57,7 +57,6 @@ private struct PrivacyRedactionView: View {
 struct LockView: View {
     @EnvironmentObject private var auth: GoogleAuthService
     @EnvironmentObject private var gate: BiometricGate
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -136,11 +135,12 @@ struct LockView: View {
                                     .font(.system(size: 16, weight: .semibold))
                             }
                             .foregroundStyle(.black)
-                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .frame(maxWidth: .infinity, minHeight: Theme.controlHeight)
                             .background(Color.white)
                             .clipShape(Capsule())
+                            .opacity(auth.isWorking ? 0.6 : 1)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableButtonStyle(amount: 0.96))
                         .disabled(auth.isWorking)
 
                         Button {
@@ -153,36 +153,32 @@ struct LockView: View {
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.12))
                             }
-                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .frame(maxWidth: .infinity, minHeight: Theme.controlHeight)
                             .background(Color.white)
                             .clipShape(Capsule())
                             .overlay(
                                 Capsule()
                                     .stroke(Color(red: 0.85, green: 0.85, blue: 0.85), lineWidth: 1)
                             )
+                            .opacity(auth.isWorking ? 0.6 : 1)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableButtonStyle(amount: 0.96))
                         .disabled(auth.isWorking)
                     } else {
                         Button {
                             gate.unlock()
                         } label: {
                             Label("Unlock Vault", systemImage: "faceid")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity, minHeight: 54)
-                                .background(Theme.accentGradient)
-                                .clipShape(Capsule())
-                                .shadow(color: Theme.accent.opacity(0.4), radius: 16, y: 7)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PrimaryButtonStyle())
                     }
 
                     if let message = auth.errorMessage ?? gate.message {
-                        Text(message)
+                        Label(message, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.danger)
                             .multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isStaticText)
                     }
 
                     HStack(spacing: 18) {
@@ -207,6 +203,7 @@ struct LockView: View {
 
 /// Slow-moving ambient glow behind the lock screen content.
 private struct AuroraField: View {
+    @Environment(\.ambientMotionEnabled) private var ambientMotionEnabled
     @State private var phase: CGFloat = 0
 
     var body: some View {
@@ -236,6 +233,9 @@ private struct AuroraField: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .onAppear {
+                // Decorative only — a never-ending loop is exactly what
+                // Reduce Motion is meant to switch off.
+                guard ambientMotionEnabled else { return }
                 withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) {
                     phase = 1
                 }

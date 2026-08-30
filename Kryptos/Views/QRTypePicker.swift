@@ -17,11 +17,16 @@ struct QRTypePicker: View {
                         .padding(.horizontal, 10)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(selected == type ? BrandPalette.primary.opacity(0.16) : Color.secondary.opacity(0.08))
+                                .fill(selected == type ? Theme.accent.opacity(0.18) : Theme.surfaceRaised)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(selected == type ? Theme.accent.opacity(0.5) : Theme.stroke, lineWidth: 1)
                         )
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(selected == type ? BrandPalette.primary : .primary)
+                .buttonStyle(PressableButtonStyle(amount: 0.95))
+                .foregroundStyle(selected == type ? Theme.accent : Theme.textSecondary)
+                .accessibilityAddTraits(selected == type ? [.isSelected] : [])
             }
         }
         .padding(.vertical, 4)

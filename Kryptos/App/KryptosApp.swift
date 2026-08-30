@@ -12,12 +12,19 @@ struct KryptosApp: App {
 
     @StateObject private var auth = GoogleAuthService()
     @StateObject private var billing = BillingService()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(auth)
                 .environmentObject(billing)
+                // The vault is dark by design. Locking the appearance keeps
+                // system chrome (sheets, pickers, alerts, keyboard) in step
+                // with the themed screens instead of flashing white.
+                .preferredColorScheme(.dark)
+                .tint(Theme.accent)
+                .environment(\.ambientMotionEnabled, !reduceMotion)
         }
         .modelContainer(modelContainer)
     }

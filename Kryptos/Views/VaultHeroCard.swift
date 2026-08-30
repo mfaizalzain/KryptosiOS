@@ -65,11 +65,13 @@ struct VaultHeroCard: View {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.white.opacity(compact ? 0.14 : 0.22), lineWidth: 1)
 
-            if template.supportsExpiryBadge, let expiry = expiryDate, !showsScannedPreview, shouldShowBadge(for: expiry) {
+            if template.supportsExpiryBadge, !showsScannedPreview,
+               let status = ExpiryStatus(date: expiryDate),
+               !compact || status.isUrgent {
                 VStack {
                     HStack {
                         Spacer()
-                        expiryBadge(for: expiry)
+                        expiryBadge(status)
                             .padding(compact ? 10 : 12)
                     }
                     Spacer()
@@ -83,33 +85,14 @@ struct VaultHeroCard: View {
         ExpiryReminderService.shared.expiryDate(forFields: fields, template: template)
     }
 
-    /// On compact cards only surface urgent states; the full card always shows the badge.
-    private func shouldShowBadge(for date: Date) -> Bool {
-        guard compact else { return true }
-        if date < .now { return true }
-        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
-        return days <= 30
-    }
-
-    private func expiryBadge(for date: Date) -> some View {
-        let expired = date < .now
-        let days = Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
-        let label: String
-        if expired {
-            label = "Expired"
-        } else if days <= 30 {
-            label = "Expires soon"
-        } else {
-            label = date.formatted(.dateTime.month(.abbreviated).year())
-        }
-        let tint = expired ? Theme.danger : (days <= 30 ? Theme.warning : Theme.success)
-        return HStack(spacing: 4) {
-            Image(systemName: expired ? "xmark.circle.fill" : (days <= 30 ? "exclamationmark.circle.fill" : "checkmark.circle.fill"))
+    private func expiryBadge(_ status: ExpiryStatus) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: status.symbol)
                 .font(.system(size: 10, weight: .bold))
-            Text(label)
+            Text(status.label)
                 .font(.system(size: 10, weight: .bold))
         }
-        .foregroundStyle(tint)
+        .foregroundStyle(status.tint)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(.black.opacity(0.45), in: Capsule())
@@ -118,6 +101,18 @@ struct VaultHeroCard: View {
 
     private var cornerRadius: CGFloat {
         compact ? 14 : 22
+    }
+
+    /// Horizontal space the expiry badge occupies in the top-trailing corner,
+    /// reserved by the content so titles don't run underneath it. The badge
+    /// uses a fixed 10pt font, so its width does not shrink on compact cards —
+    /// the reservation is the same either way, plus the card's own inset.
+    private var badgeReservedWidth: CGFloat {
+        guard template.supportsExpiryBadge,
+              let status = ExpiryStatus(date: expiryDate),
+              !compact || status.isUrgent
+        else { return 0 }
+        return 118
     }
 
     private var showsScannedPreview: Bool {
@@ -133,7 +128,7 @@ struct VaultHeroCard: View {
             HStack(spacing: 6) {
                 Image(systemName: template.symbol)
                     .font(.caption2.weight(.semibold))
-                Text(title.ifEmpty(template.title))
+                Text(title.ifBlank(template.title))
                     .font(.caption2.weight(.bold))
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -178,6 +173,8 @@ struct VaultHeroCard: View {
                 Text(title.isEmpty ? template.title.uppercased() : title)
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .padding(.trailing, badgeReservedWidth)
 
                 LabelValue(label: template == .passport ? "Number" : "Identifier", value: maskIdentifier(fields.firstValue("Passport number", "ID number", "License number")))
                 LabelValue(label: "Name", value: fields.firstValue("Full name", "Surname", "Given names"))
@@ -193,13 +190,10 @@ struct VaultHeroCard: View {
     }
 
     private var paymentCard: some View {
-        HStack(spacing: compact ? 12 : 16) {
-            iconPlaceholder(symbol: "creditcard.fill")
-                .frame(width: compact ? 58 : 92)
-
-            VStack(alignment: .leading, spacing: compact ? 5 : 10) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: Theme.space3) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title.ifEmpty(fields.value("Issuer").ifEmpty("KRYPTOS CARD")))
+                    Text(title.ifBlank(fields.value("Issuer").ifBlank("KRYPTOS CARD")))
                         .font((compact ? Font.subheadline : Font.headline).bold())
                         .lineLimit(1)
                     if !title.isEmpty, !fields.value("Issuer").isEmpty, title != fields.value("Issuer") {
@@ -210,20 +204,47 @@ struct VaultHeroCard: View {
                     }
                 }
 
-                Text(maskCard(fields.firstValue("Number", "Card number")))
-                    .font(.system(size: compact ? 15 : 22, weight: .semibold, design: .monospaced))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
-                HStack {
-                    LabelValue(label: "Cardholder", value: fields.value("Cardholder"))
-                    Spacer()
-                    LabelValue(label: "Expires", value: formattedExpiry(fields.value("Expiry")))
-                }
                 Spacer(minLength: 0)
+
+                // Leaves room for the expiry badge pinned to the same corner.
+                Color.clear.frame(width: badgeReservedWidth, height: 1)
             }
-            Spacer(minLength: 0)
+
+            if !compact {
+                Spacer(minLength: 8)
+                chipMark
+            }
+
+            Spacer(minLength: compact ? 6 : 10)
+
+            Text(maskCard(fields.firstValue("Number", "Card number")))
+                .font(.system(size: compact ? 15 : 22, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Spacer(minLength: compact ? 6 : 10)
+
+            HStack(alignment: .bottom) {
+                LabelValue(label: "Cardholder", value: fields.value("Cardholder"))
+                Spacer(minLength: Theme.space3)
+                LabelValue(label: "Expires", value: formattedExpiry(fields.value("Expiry")))
+            }
         }
+    }
+
+    /// The stamped foil chip on full-size payment cards.
+    private var chipMark: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [.white.opacity(0.55), .white.opacity(0.2)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: 34, height: 26)
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(.white.opacity(0.35), lineWidth: 0.5))
+            .accessibilityHidden(true)
     }
 
     private var documentCard: some View {
@@ -232,7 +253,7 @@ struct VaultHeroCard: View {
                 .frame(width: compact ? 58 : 92)
 
             VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                Text(title.ifEmpty(template.title))
+                Text(title.ifBlank(template.title))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
                 ForEach(fields.prefix(compact ? 2 : 5)) { field in
@@ -250,7 +271,7 @@ struct VaultHeroCard: View {
                 .frame(width: compact ? 58 : 92)
 
             VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                Text(fields.value("Service").ifEmpty(title.ifEmpty("API Key")))
+                Text(fields.value("Service").ifBlank(title.ifBlank("API Key")))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
                 Text(maskSecret(fields.firstValue("Key", "Secret")))
@@ -269,10 +290,10 @@ struct VaultHeroCard: View {
                 .frame(width: compact ? 58 : 92)
 
             VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                Text(title.ifEmpty("Secure Note"))
+                Text(title.ifBlank("Secure Note"))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(1)
-                Text(fields.value("Content").ifEmpty("No content"))
+                Text(fields.value("Content").ifBlank("No content"))
                     .font(compact ? .caption : .body)
                     .lineLimit(compact ? 3 : 8)
                 Spacer(minLength: 0)
@@ -314,7 +335,7 @@ struct VaultHeroCard: View {
                     .font(.system(size: compact ? 42 : 64))
             }
             VStack(alignment: .leading, spacing: compact ? 6 : 10) {
-                Text(title.ifEmpty("QR Code"))
+                Text(title.ifBlank("QR Code"))
                     .font((compact ? Font.subheadline : Font.title3).bold())
                     .lineLimit(2)
                 Text(fields.value("Data"))
@@ -332,7 +353,7 @@ struct VaultHeroCard: View {
 
     private func maskCard(_ number: String) -> String {
         let digits = number.digitsOnly
-        guard digits.count > 4 else { return number.ifEmpty("•••• •••• •••• ••••") }
+        guard digits.count > 4 else { return number.ifBlank("•••• •••• •••• ••••") }
         return "•••• •••• •••• \(digits.suffix(4))"
     }
 
@@ -379,7 +400,7 @@ private struct LabelValue: View {
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.white.opacity(0.68))
                 .lineLimit(1)
-            Text(value.ifEmpty("-"))
+            Text(value.ifBlank("-"))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -392,6 +413,7 @@ private struct LabelValue: View {
 private struct ShineSweep: View {
     let cornerRadius: CGFloat
 
+    @Environment(\.ambientMotionEnabled) private var ambientMotionEnabled
     @State private var offset: CGFloat = -1.4
 
     var body: some View {
@@ -415,6 +437,8 @@ private struct ShineSweep: View {
                 .offset(x: offset * width, y: -height * 0.4)
                 .blendMode(.overlay)
                 .onAppear {
+                    // Purely decorative; park it off-card under Reduce Motion.
+                    guard ambientMotionEnabled else { return }
                     withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: false)) {
                         offset = 1.4
                     }
@@ -440,12 +464,6 @@ final class ImageCache {
             return image
         }
         return nil
-    }
-}
-
-private extension String {
-    func ifEmpty(_ fallback: String) -> String {
-        isEmpty ? fallback : self
     }
 }
 

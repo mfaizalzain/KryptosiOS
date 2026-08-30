@@ -5,6 +5,7 @@ import Foundation
 import LocalAuthentication
 import Security
 import UIKit
+import UniformTypeIdentifiers
 
 enum KryptosSecurityError: LocalizedError {
     case keychainReadFailed
@@ -266,11 +267,23 @@ final class BiometricGate: ObservableObject {
 }
 
 enum SecureClipboard {
-    static func copy(label: String, value: String) {
-        UIPasteboard.general.string = value
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+    static let clearAfter: TimeInterval = 30
+
+    /// Copies a secret with a pasteboard expiry so it disappears after 30
+    /// seconds even if the app is backgrounded or killed in the meantime — an
+    /// in-process timer alone leaves secrets on the clipboard indefinitely.
+    static func copy(value: String) {
+        let expiry = Date().addingTimeInterval(clearAfter)
+        UIPasteboard.general.setItems(
+            [[UTType.utf8PlainText.identifier: value]],
+            options: [.expirationDate: expiry]
+        )
+
+        // Belt and braces: clear eagerly while we are still running, so the
+        // value is gone the moment it expires rather than at the next read.
+        DispatchQueue.main.asyncAfter(deadline: .now() + clearAfter) {
             if UIPasteboard.general.string == value {
-                UIPasteboard.general.string = ""
+                UIPasteboard.general.items = []
             }
         }
     }

@@ -5,21 +5,25 @@ struct FieldEditorRow: View {
     let template: VaultTemplate
     @Binding var field: VaultField
     let isDefault: Bool
+    /// Lets the editor focus the name of a field it just added.
+    var nameFieldFocus: FocusState<UUID?>.Binding?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.space2) {
             if isDefault {
                 Text(field.name.uppercased())
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(BrandPalette.primary)
+                    .font(Theme.captionSmall)
+                    .foregroundStyle(Theme.accent)
             } else {
-                TextField("Field name", text: $field.name)
+                nameField
             }
 
             switch inputKind {
             case .multiline:
                 TextEditor(text: $field.value)
                     .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .background(Theme.surfaceSunken, in: RoundedRectangle(cornerRadius: Theme.radiusSmall, style: .continuous))
             case .date:
                 DatePicker(
                     "Value",
@@ -42,15 +46,28 @@ struct FieldEditorRow: View {
                         } label: {
                             Image(systemName: "dice.fill")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(BrandPalette.primary)
+                                .foregroundStyle(Theme.accent)
                                 .frame(width: 36, height: 36)
-                                .background(BrandPalette.primary.opacity(0.12), in: Circle())
+                                .background(Theme.accent.opacity(0.14), in: Circle())
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Generate secure value")
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var nameField: some View {
+        let textField = TextField("Field name", text: $field.name)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.textSecondary)
+            .textInputAutocapitalization(.words)
+        if let nameFieldFocus {
+            textField.focused(nameFieldFocus, equals: field.id)
+        } else {
+            textField
         }
     }
 
@@ -69,12 +86,7 @@ struct FieldEditorRow: View {
     }
 
     private var displayedValue: String {
-        if template == .paymentCard && field.name.lowercased().contains("expiry") {
-            let digits = field.value.digitsOnly
-            guard digits.count > 2 else { return digits }
-            return "\(digits.prefix(2))/\(digits.dropFirst(2))"
-        }
-        return field.value
+        FieldInputRules.displayString(field.value, for: template, fieldName: field.name)
     }
 
     private var inputKind: FieldInputRules.Kind {
@@ -127,6 +139,16 @@ enum FieldInputRules {
         }
 
         return .text
+    }
+
+    /// How a stored value should be shown to the user. Payment-card expiries
+    /// are stored as four digits but always read as MM/YY, in the editor and on
+    /// the detail screen alike.
+    static func displayString(_ value: String, for template: VaultTemplate, fieldName: String) -> String {
+        guard case .paymentExpiry = kind(for: template, fieldName: fieldName) else { return value }
+        let digits = value.digitsOnly
+        guard digits.count > 2 else { return digits }
+        return "\(digits.prefix(2))/\(digits.dropFirst(2))"
     }
 
     static func sanitize(_ value: String, for template: VaultTemplate, fieldName: String) -> String {

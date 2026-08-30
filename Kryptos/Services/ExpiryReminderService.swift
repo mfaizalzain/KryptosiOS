@@ -29,6 +29,18 @@ final class ExpiryReminderService: ObservableObject {
         authorizationStatus = settings.authorizationStatus
     }
 
+    /// Whether notifications are already permitted. Never shows the system
+    /// prompt — use this on paths the user did not explicitly initiate.
+    func hasAuthorization() async -> Bool {
+        await refreshAuthorizationStatus()
+        switch authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
+
     @discardableResult
     func requestAuthorization() async -> Bool {
         let center = UNUserNotificationCenter.current()
@@ -52,7 +64,10 @@ final class ExpiryReminderService: ObservableObject {
             await cancelAll()
             return
         }
-        guard await requestAuthorization() else { return }
+        // Reconciliation runs whenever the vault opens, which is the wrong
+        // moment to interrupt with a permission prompt. Ask only when the user
+        // saves an entry that needs a reminder, or flips the Settings toggle.
+        guard await hasAuthorization() else { return }
 
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()

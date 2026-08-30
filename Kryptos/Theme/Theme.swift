@@ -6,6 +6,9 @@ import SwiftUI
 // glows in the dark feels secure. All screens read their colors, gradients,
 // spacing, radii, and type from this single file so the whole product stays
 // consistent and can be re-themed in one place.
+//
+// The app locks itself to the dark appearance (see `KryptosApp`), so these
+// values are absolute rather than adaptive.
 
 enum Theme {
     // MARK: Surfaces
@@ -16,8 +19,12 @@ enum Theme {
     static let surface = Color(red: 17/255, green: 24/255, blue: 44/255)
     /// Slightly lighter surface for hover/pressed states and separators.
     static let surfaceRaised = Color(red: 26/255, green: 35/255, blue: 60/255)
+    /// Recessed surface for inputs sitting inside an already-elevated card.
+    static let surfaceSunken = Color(red: 13/255, green: 19/255, blue: 36/255)
     /// Subtle stroke color for cards and controls.
     static let stroke = Color.white.opacity(0.08)
+    /// A more assertive stroke for focused or selected chrome.
+    static let strokeStrong = Color.white.opacity(0.16)
 
     // MARK: Text
 
@@ -69,6 +76,14 @@ enum Theme {
     static let radiusLarge: CGFloat = 22
     static let radiusPill: CGFloat = 999
 
+    // MARK: Control metrics
+
+    /// Minimum height for primary/secondary buttons. Comfortably above the
+    /// 44pt hit-target floor.
+    static let controlHeight: CGFloat = 52
+    /// Height of compact controls: search fields, chips, inline pickers.
+    static let controlHeightCompact: CGFloat = 46
+
     // MARK: Type ramp
 
     static let titleLarge = Font.system(size: 32, weight: .bold, design: .rounded)
@@ -78,6 +93,32 @@ enum Theme {
     static let bodyMedium = Font.system(size: 16, weight: .medium)
     static let caption = Font.system(size: 13, weight: .medium)
     static let captionSmall = Font.system(size: 11, weight: .semibold)
+
+    // MARK: Motion
+
+    /// Standard springy response for taps and state flips.
+    static let springFast = Animation.spring(response: 0.3, dampingFraction: 0.72)
+    /// Slightly softer spring for content that moves a longer distance.
+    static let springSoft = Animation.spring(response: 0.42, dampingFraction: 0.82)
+    /// Snappy curve for selection changes (chips, segmented state).
+    static let snappy = Animation.snappy(duration: 0.25)
+}
+
+// MARK: - Motion accessibility
+
+/// Ambient, purely decorative animation should stop entirely when the user has
+/// asked the system to reduce motion. Reading this in one place keeps every
+/// decorative view honest.
+struct AmbientMotionKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// `false` when the user enabled Reduce Motion; decorative loops must not run.
+    var ambientMotionEnabled: Bool {
+        get { self[AmbientMotionKey.self] }
+        set { self[AmbientMotionKey.self] = newValue }
+    }
 }
 
 // MARK: - Shared view modifiers
@@ -90,16 +131,34 @@ struct VaultBackground: ViewModifier {
     }
 }
 
+/// Applies the vault look to a `List` or `Form`, which otherwise render with
+/// the system grouped-table chrome and read as a different app.
+struct VaultFormChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollContentBackground(.hidden)
+            .background(Theme.backgroundGradient.ignoresSafeArea())
+            .listRowBackground(Theme.surface)
+            .tint(Theme.accent)
+    }
+}
+
 extension View {
     /// Applies the dark-first vault background.
     func vaultBackground() -> some View {
         modifier(VaultBackground())
     }
 
+    /// Applies vault styling to a `List`/`Form` so settings, editor, and detail
+    /// screens match the rest of the product instead of the system default.
+    func vaultFormChrome() -> some View {
+        modifier(VaultFormChrome())
+    }
+
     /// Springy press feedback used by cards and primary buttons.
     func pressScale(_ isPressed: Bool, amount: CGFloat = 0.97) -> some View {
         scaleEffect(isPressed ? amount : 1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+            .animation(Theme.springFast, value: isPressed)
     }
 }
 
@@ -109,6 +168,57 @@ struct VaultDivider: View {
         Rectangle()
             .fill(Theme.stroke)
             .frame(height: 1)
+    }
+}
+
+// MARK: - Button styles
+
+/// The single filled call-to-action style. Every prominent button in the app
+/// uses this so weight, radius, glow, and press feedback stay identical.
+struct PrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var fullWidth = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.headline)
+            .foregroundStyle(.white)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: Theme.controlHeight)
+            .padding(.horizontal, fullWidth ? Theme.space4 : Theme.space5)
+            .background(Theme.accentGradient, in: Capsule())
+            .opacity(isEnabled ? 1 : 0.45)
+            .shadow(color: Theme.accent.opacity(isEnabled ? 0.35 : 0), radius: 14, y: 6)
+            .pressScale(configuration.isPressed, amount: 0.96)
+    }
+}
+
+/// The outlined counterpart to `PrimaryButtonStyle`.
+struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    var fullWidth = true
+    var tint: Color = Theme.textPrimary
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Theme.headline)
+            .foregroundStyle(tint)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: Theme.controlHeight)
+            .padding(.horizontal, fullWidth ? Theme.space4 : Theme.space5)
+            .background(Theme.surface, in: Capsule())
+            .overlay(Capsule().stroke(Theme.stroke, lineWidth: 1))
+            .opacity(isEnabled ? 1 : 0.45)
+            .pressScale(configuration.isPressed, amount: 0.96)
+    }
+}
+
+/// Press feedback with no chrome of its own — for cards and custom labels.
+struct PressableButtonStyle: ButtonStyle {
+    var amount: CGFloat = 0.97
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .pressScale(configuration.isPressed, amount: amount)
     }
 }
 
@@ -155,5 +265,70 @@ struct VaultChip: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
         .background(tint.opacity(0.14), in: Capsule())
+    }
+}
+
+/// Section heading used above grouped content on themed (non-`List`) screens.
+struct VaultSectionHeader: View {
+    let title: String
+    var subtitle: String? = nil
+    var symbol: String? = nil
+    var tint: Color = Theme.accent
+
+    var body: some View {
+        HStack(spacing: Theme.space3) {
+            if let symbol {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.radiusSmall, style: .continuous)
+                        .fill(tint.opacity(0.14))
+                    Image(systemName: symbol)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+                .frame(width: 32, height: 32)
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(Theme.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A transient confirmation banner (copy, save, restore). Anchored by the
+/// caller; this view only owns its own look.
+struct VaultToast: View {
+    let message: String
+    var symbol: String = "checkmark.circle.fill"
+    var tint: Color = Theme.success
+
+    var body: some View {
+        HStack(spacing: Theme.space2) {
+            Image(systemName: symbol)
+                .foregroundStyle(tint)
+            Text(message)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(
+            Capsule()
+                .fill(Theme.surfaceRaised)
+                .shadow(color: .black.opacity(0.4), radius: 14, y: 6)
+        )
+        .overlay(Capsule().stroke(Theme.stroke, lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 }
